@@ -1,0 +1,100 @@
+/* ---------- floors: every level is modelled inside the tower (js/layout.js -> js/tower.js); choosing a level cuts the tower above it ---------- */
+const ROOMS = {
+  lobby:      {file:'models/room_lobby.glb',      box:[48,96,-300,-286],   name:'Lobby', cy:-6.4, tags:[['Reception / เคาน์เตอร์ต้อนรับ',80,-296,41.3],['Grand Piano / เปียโน',63.3,-297,41.8],['Floral Centrepiece / ดอกไม้กลางห้อง',72,-293,42.2],['Lounge / มุมนั่งเล่น',65.5,-292.5,41],['Café / คาเฟ่',54,-292,41],['Library Lounge / เลาจน์',90,-292,41]]},
+  restaurant: {file:'models/room_restaurant.glb', box:[100,124,-300,-285], name:'All-Day Dining', cy:-6.3, tags:[['Buffet & Live Stations / บุฟเฟต์',112,-287,41.4],['Open Kitchen / ครัวเปิด',120.5,-299,41.4],['Wine Wall / ชั้นไวน์',123.2,-292,42],['Dining Tables / โต๊ะอาหาร',105,-291.7,41.2]]},
+  gym:        {file:'models/room_gym.glb',        box:[140,164,-300,-286], name:'Fitness & Spa', cy:-5.8, tags:[['Yoga Studio / สตูดิโอโยคะ',145.8,-296.5,41],['Cardio / คาร์ดิโอ',155,-294,41.2],['Juice Bar / บาร์น้ำ',160,-287.5,41.4]]},
+};
+const FLOORS = [[18,'roof','Rooftop Bar & Pool'],[17,'sky','Presidential Sky Suite'],[16,'suite','Executive Suites'],[15,'suite','Executive Suites'],[14,'lounge','Club Lounge'],[13,'club','Club Rooms'],[12,'club','Club Rooms'],[11,'club','Club Rooms'],[10,'club','Club Rooms'],[9,'pool','Pool & Wellness'],[8,'deluxe','Deluxe Rooms'],[7,'deluxe','Deluxe Rooms'],[6,'deluxe','Deluxe Rooms'],[5,'deluxe','Deluxe Rooms'],[4,'deluxe','Deluxe Rooms'],[3,'gym','Fitness & Spa'],[2,'restaurant','All-Day Dining'],['G','lobby','Lobby & Reception']];
+const GUEST_KEYS = ['deluxe','club','suite','sky'];
+let TOWER = null; const roomCache = {}; const saved = {}; const clipPlane = new THREE.Plane(new THREE.Vector3(0, -1, 0), 999);
+let floorMode = null, floorLv = null, podiumGroup = null, curRoom = null, roomMode = 'plan', planLabels = [], hoverPick = null;
+const layer = (id, css) => { const d = document.createElement('div'); d.id = id; d.style.cssText = css; document.body.appendChild(d); return d; };
+const planLayer = layer('planlabels', 'position:fixed;inset:0;pointer-events:none;z-index:30');
+const floorsEl = layer('floors', 'position:fixed;right:18px;top:50%;transform:translateY(-50%);z-index:25;display:flex;flex-direction:column;gap:3px;font:400 10px/1 Jost,sans-serif;letter-spacing:.14em');
+const floorBtns = {};
+FLOORS.forEach(([lv, key, nm]) => { const b = document.createElement('button'); b.innerHTML = `<b style="display:inline-block;width:20px;color:#c9a24a">${lv}</b>${nm}`; b.style.cssText = 'background:rgba(8,7,5,.66);color:#efe8da;border:1px solid rgba(201,162,74,.35);padding:6px 10px;text-align:left;cursor:pointer;text-transform:uppercase;backdrop-filter:blur(4px)'; b.onmouseenter = () => b.style.borderColor = '#c9a24a'; b.onmouseleave = () => b.style.borderColor = floorLv === lv ? '#c9a24a' : 'rgba(201,162,74,.35)'; b.onclick = () => openFloor(lv); floorsEl.appendChild(b); floorBtns[lv] = b; });
+const roomUI = layer('roomui', 'position:fixed;top:128px;right:290px;z-index:40;display:none;flex-direction:column;gap:8px'); roomUI.innerHTML = '<button class="ghost" id="rv_plan">Back to floor plan</button><button class="ghost" id="rv_win">Window view</button><button class="ghost" id="rv_up">&#9650; Level above</button><button class="ghost" id="rv_dn">&#9660; Level below</button>';
+const roomTitle = layer('roomtitle', 'position:fixed;left:50%;top:70px;transform:translateX(-50%);z-index:40;display:none;font:300 12px/1.8 Jost,sans-serif;letter-spacing:.42em;text-transform:uppercase;color:#efe8da;text-shadow:0 1px 8px #000;text-align:center');
+const roomCard = layer('roomcard', 'position:fixed;left:26px;bottom:70px;z-index:40;display:none;min-width:260px;padding:16px 18px;background:rgba(8,7,5,.78);border-left:2px solid #c9a24a;color:#efe8da;font:300 13px/1.7 Jost,"Noto Sans Thai",sans-serif;backdrop-filter:blur(6px)');
+function prepRoom(g){ g.traverse(o => { if (!o.isMesh) return; const m = o.material; if (!m) return; m.envMapIntensity = .6; if (m.color && (m.color.r + m.color.g + m.color.b) / 3 > .45) m.color.multiplyScalar(.62); if (m.name === 'LuxSheer') { m.transparent = true; m.opacity = .3; m.depthWrite = false; m.side = THREE.DoubleSide; } if (m.emissive && m.emissiveIntensity > 0) m.emissiveIntensity = Math.min(m.emissiveIntensity, 1.6); }); return g; }
+async function loadRoom(key){ const R = ROOMS[key]; if (!roomCache[key]) roomCache[key] = prepRoom(await new Promise((res, rej) => loader.load(R.file, g => res(g.scene), undefined, rej))); return roomCache[key]; }
+function label(text, p, cls){ const el = document.createElement('div'); el.textContent = text; el.style.cssText = `position:absolute;transform:translate(-50%,-50%);padding:3px 8px;font:400 ${cls === 'room' ? 11 : 10}px/1.2 Jost,"Noto Sans Thai",sans-serif;letter-spacing:.08em;white-space:nowrap;color:#efe8da;background:rgba(8,7,5,${cls === 'room' ? .72 : .58});border-left:1px solid #c9a24a;pointer-events:none`; planLayer.appendChild(el); planLabels.push({el, p}); return el; }
+const W3 = (x, y, z) => new THREE.Vector3(x, FLOORZ[floorLv] + z, -y);   // floor-local Blender coords -> world
+function clearLabels(){ planLayer.innerHTML = ''; planLabels = []; }
+function enterShell(){
+  if (saved.set) return;
+  Object.assign(saved, {set:1, bloom: bloom.strength, sunI: sun.intensity, hemi: hemi.intensity, minD:controls.minDistance, maxD:controls.maxDistance, pol:controls.maxPolarAngle, near:camera.near, pan:controls.enablePan, zoom:controls.enableZoom, rot:controls.rotateSpeed});
+  bloom.enabled = false; sun.intensity = 1.0; hemi.intensity = .75;
+  if (LIFE.planter) { LIFE.planter.visible = false; LIFE.shrub.visible = false; }
+  $('#hotspots').classList.add('hide'); $('#tabs').style.visibility = 'hidden'; $('#exitroom').style.display = 'block'; roomUI.style.display = 'flex'; roomTitle.style.display = 'block';
+}
+async function flyTo(pos, tgt, dur){ await fly(pos, tgt, dur || 2200, 0); if (floorMode) $('#hotspots').classList.add('hide'); }
+function setOrbit(minD, maxD){ controls.enablePan = true; controls.enableZoom = true; controls.rotateSpeed = .55; controls.minDistance = minD; controls.maxDistance = maxD; controls.maxPolarAngle = Math.PI * .495; camera.near = .1; camera.updateProjectionMatrix(); controls.enabled = true; }
+function clearPodium(){ if (podiumGroup) { scene.remove(podiumGroup); podiumGroup = null; } }
+function exitAll(){
+  if (!saved.set) return; clearLabels(); clearPodium(); renderer.clippingPlanes = []; floorMode = null; floorLv = null; curRoom = null; roomCard.style.display = 'none';
+  Object.values(floorBtns).forEach(b => b.style.borderColor = 'rgba(201,162,74,.35)');
+  bloom.strength = saved.bloom; bloom.enabled = true; sun.intensity = saved.sunI; hemi.intensity = saved.hemi; controls.minDistance = saved.minD; controls.maxDistance = saved.maxD; controls.maxPolarAngle = saved.pol; controls.enablePan = saved.pan; controls.enableZoom = saved.zoom; controls.rotateSpeed = saved.rot; camera.near = saved.near; camera.updateProjectionMatrix(); saved.set = 0;
+  if (LIFE.planter) { LIFE.planter.visible = true; LIFE.shrub.visible = true; }
+  $('#tabs').style.visibility = 'visible'; $('#exitroom').style.display = 'none'; roomUI.style.display = 'none'; roomTitle.style.display = 'none'; $('#hint').innerHTML = 'Drag to orbit &nbsp;/&nbsp; Select a marker to step inside';
+  fly(VIEWS.aerial.pos, VIEWS.aerial.tgt, 2600, 8);
+}
+function floorLabels(){
+  clearLabels(); const F = TOWER.floors[floorLv]; if (!F) return;
+  for (const r of F.layout.rooms) label(`${r.num}  ${r.name}`, W3((r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2, 2.0), 'room');
+  for (const [t, x, y, z] of F.layout.labels) label(t, W3(x, y, z));
+}
+function showButtons(plan){ $('#rv_plan').style.display = plan ? 'none' : ''; $('#rv_win').style.display = plan ? 'none' : ''; }
+async function openFloor(lv){
+  if (!TOWER) return;
+  closeSpot(); enterShell(); clearPodium(); curRoom = null; roomCard.style.display = 'none'; floorLv = lv; roomMode = 'plan';
+  Object.entries(floorBtns).forEach(([k, b]) => b.style.borderColor = String(k) === String(lv) ? '#c9a24a' : 'rgba(201,162,74,.35)');
+  const fz = FLOORZ[lv], nm = FLOORS.find(f => f[0] === lv)[2], F = TOWER.floors[lv];
+  floorMode = F && F.type ? 'tower' : 'space';
+  clipPlane.constant = fz + (lv === 18 ? 9 : 2.72); renderer.clippingPlanes = [clipPlane];
+  roomTitle.innerHTML = `Level ${lv} &nbsp;-&nbsp; ${nm}<br><span style="font-size:10px;letter-spacing:.3em;color:#c9a24a">${floorMode === 'tower' ? 'Click a room to zoom in' : 'Drag to rotate - scroll to zoom'}</span>`;
+  showButtons(true); floorLabels();
+  if (ROOMS[{G:'lobby', 2:'restaurant', 3:'gym'}[lv]]) {        // podium levels: staged room models on the river side of the podium
+    const key = {G:'lobby', 2:'restaurant', 3:'gym'}[lv], R = ROOMS[key]; await loadRoom(key); if (floorLv !== lv) return;
+    const [x0, x1, y0, y1] = R.box, m = roomCache[key].clone(true); podiumGroup = new THREE.Group(); m.position.set(-(x0 + x1) / 2, -40, (y0 + y1) / 2); podiumGroup.add(m); podiumGroup.rotation.y = Math.PI; podiumGroup.position.set(0, fz + .01, -R.cy); scene.add(podiumGroup);
+    podiumGroup.updateMatrixWorld(true); for (const t of R.tags) label(t[0], podiumGroup.localToWorld(new THREE.Vector3(t[1] - (x0 + x1) / 2, t[3] - 40, -(t[2] - (y0 + y1) / 2))));
+    await flyTo(W3(4, -40, 30), W3(0, -3, 0), 2600); setOrbit(4, 160); $('#hint').textContent = 'Drag to rotate  /  Scroll to zoom in and out';
+    return;
+  }
+  if (lv === 18) { await flyTo(W3(10, -34, 22), W3(0, 0, 1), 2600); setOrbit(4, 160); $('#hint').textContent = 'Drag to rotate  /  Scroll to zoom in and out'; return; }
+  await flyTo(W3(3, -24, 27), W3(0, 0, .5), 2600); setOrbit(3, 140);
+  $('#hint').textContent = 'Click a room to zoom in  /  Drag to rotate  /  Scroll to zoom in and out';
+}
+function pickRoom(e){ if (floorMode !== 'tower' || roomMode === 'win') return null; const F = TOWER.floors[floorLv]; _pt.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); _ray.setFromCamera(_pt, camera); const h = _ray.intersectObjects(F.picks, false); return h.length ? h[0].object : null; }
+const _ray = new THREE.Raycaster(), _pt = new THREE.Vector2();
+canvas.addEventListener('pointermove', e => { if (floorMode !== 'tower') return; const h = pickRoom(e); if (h !== hoverPick) { if (hoverPick) hoverPick.material.opacity = 0; hoverPick = h; if (h && h.userData.room !== curRoom) h.material.opacity = .14; canvas.style.cursor = h ? 'pointer' : ''; } });
+let _down = null; canvas.addEventListener('pointerdown', e => { _down = [e.clientX, e.clientY]; });
+canvas.addEventListener('pointerup', e => { if (floorMode !== 'tower' || !_down || Math.hypot(e.clientX - _down[0], e.clientY - _down[1]) > 5) return; const h = pickRoom(e); if (h) openRoom(h.userData.room); });
+async function openRoom(r){
+  curRoom = r; roomMode = 'room'; if (hoverPick) { hoverPick.material.opacity = 0; hoverPick = null; }
+  clearLabels(); for (const [t, x, y, z] of r.tags) label(t, W3(x, y, z));
+  roomTitle.innerHTML = `Level ${floorLv} &nbsp;-&nbsp; Room ${r.num} &nbsp;-&nbsp; ${r.name}`;
+  roomCard.innerHTML = `<div style="font-size:10px;letter-spacing:.3em;color:#c9a24a;text-transform:uppercase">${r.tier}</div><div style="font:400 22px/1.3 'Cormorant Garamond',serif;margin:4px 0 6px">${r.name}</div><div>Room ${r.num} · ${r.area} m² · ${r.view}</div>`; roomCard.style.display = 'block';
+  showButtons(false);
+  const cx = (r.x0 + r.x1) / 2, cy = (r.y0 + r.y1) / 2, w = r.x1 - r.x0, s = r.side;
+  await flyTo(W3(cx + w * .15, cy - s * (Math.max(w, 7) * .55 + 3), Math.max(w, 7) * .9 + 2.5), W3(cx, cy, .4), 2400); setOrbit(1.2, 60);
+  $('#hint').textContent = 'Drag to rotate  /  Scroll to zoom in and out  /  Window view looks out of the room';
+}
+async function windowView(){
+  if (!curRoom) return; const r = curRoom, s = r.side, cx = (r.x0 + r.x1) / 2 + (r.outer ? (r.outer === 'L' ? .25 : -.25) * (r.x1 - r.x0) : 0), yWin = s < 0 ? r.y0 + 1.2 : r.y1 - 1.2;
+  roomMode = 'win'; clearLabels(); clipPlane.constant = FLOORZ[floorLv] + 2.72;
+  const pos = W3(cx, yWin, 1.55), look = W3(cx, yWin + s * 40, 1.0);
+  await flyTo(pos, look, 2200);
+  controls.target.copy(pos).addScaledVector(look.clone().sub(pos).normalize(), .01); controls.enablePan = false; controls.enableZoom = false; controls.rotateSpeed = -.35; controls.minDistance = .01; controls.maxDistance = .01; controls.maxPolarAngle = Math.PI * .96; camera.near = .05; camera.updateProjectionMatrix(); controls.update();
+  $('#hint').textContent = 'Drag to look around  /  Back to floor plan to leave';
+}
+async function backToPlan(){ if (!floorLv) return; const lv = floorLv; curRoom = null; roomCard.style.display = 'none'; roomMode = 'plan'; showButtons(true); floorLabels(); setOrbit(3, 140); await flyTo(W3(3, -24, 27), W3(0, 0, .5), 2200); }
+const stepFloor = d => { const i = FLOORS.findIndex(f => f[0] === floorLv), j = i + d; if (i < 0 || j < 0 || j >= FLOORS.length) return; openFloor(FLOORS[j][0]); };
+$('#rv_up').onclick = () => stepFloor(-1); $('#rv_dn').onclick = () => stepFloor(1);
+$('#exitroom').onclick = () => exitAll(); $('#rv_plan').onclick = () => backToPlan(); $('#rv_win').onclick = () => windowView();
+const _tp = new THREE.Vector3();
+function walk(){
+  if (!floorMode) return; const w = innerWidth, h = innerHeight;
+  if (roomMode === 'win') { planLabels.forEach(t => t.el.style.display = 'none'); return; }
+  planLabels.forEach(t => { _tp.copy(t.p).project(camera); const vis = _tp.z < 1 && Math.abs(_tp.x) < 1.05 && Math.abs(_tp.y) < 1.05; t.el.style.display = vis ? 'block' : 'none'; t.el.style.left = ((_tp.x * .5 + .5) * w) + 'px'; t.el.style.top = ((-_tp.y * .5 + .5) * h) + 'px'; });
+}

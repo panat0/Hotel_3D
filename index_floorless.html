@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Aurelia Tower</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300&family=Jost:wght@300;400;500&family=Noto+Sans+Thai:wght@300;400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+  #loading{position:fixed;left:50%;bottom:16%;transform:translateX(-50%);z-index:60;font-size:10px;letter-spacing:.4em;color:var(--mut);text-transform:uppercase;transition:opacity 1s}
+  #room .nav{display:flex;gap:8px;padding:0 26px 20px}
+  #room .nav button{flex:1;background:none;border:1px solid var(--line);padding:9px;font-size:10px;letter-spacing:.28em;text-transform:uppercase;cursor:pointer}
+  #room .nav button:hover{border-color:var(--gold);color:var(--gold)}
+  #room .cap{font-size:13px;line-height:1.8;color:var(--mut);margin:0 0 20px}
+  #room .th{grid-template-columns:repeat(4,1fr)}
+</style>
+</head>
+<body>
+<div id="intro"><div class="w" id="iw"></div><div class="l"></div><div class="s">Bangkok &nbsp;&middot;&nbsp; Est. 2027</div></div>
+<canvas id="gl" tabindex="0"></canvas>
+<div id="hotspots"></div>
+<div id="shade"></div><div id="grain"></div>
+<header>
+  <div class="brand" id="brand"></div>
+  <nav id="tabs">
+    <button data-v="aerial" class="on">Overview</button><button data-v="arrival">Arrival</button><button data-v="garden">Garden</button><button data-v="rooftop">Rooftop</button>
+  </nav>
+  <button class="ghost" id="contact">Enquire</button>
+</header>
+<div id="card"></div>
+<aside id="room"></aside>
+<div id="loading">Loading model</div>
+<button class="ghost" id="exitroom" style="position:fixed;top:78px;right:26px;z-index:40;display:none">Exit room</button>
+<div id="hint">Drag to orbit &nbsp;/&nbsp; Select a marker to step inside</div>
+
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
+import {DRACOLoader} from 'three/addons/loaders/DRACOLoader.js';
+import {RoomEnvironment} from 'three/addons/environments/RoomEnvironment.js';
+import {EffectComposer} from 'three/addons/postprocessing/EffectComposer.js';
+import {RenderPass} from 'three/addons/postprocessing/RenderPass.js';
+import {UnrealBloomPass} from 'three/addons/postprocessing/UnrealBloomPass.js';
+import {OutputPass} from 'three/addons/postprocessing/OutputPass.js';
+
+const $ = s => document.querySelector(s);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const BL = (x, y, z) => new THREE.Vector3(x, z, -y);        // Blender (Z up) -> three.js (Y up)
+const NAME = 'Aurelia Tower';
+
+/* ---------- content: markers link to the rendered rooms ---------- */
+const SPOTS = [
+  {id:'lobby',  n:'01', title:'Lobby & Elevators',    cat:'Arrival level',  at:BL(0, -19, 3),     look:BL(0, -14, 3),  dist:22, imgs:['img/lobby_1.png','img/lobby_2.png','img/lobby_3.png'],
+   text:'ล็อบบี้แบ่ง 4 โซน: ต้อนรับพร้อมเคาน์เตอร์ ล็อบบี้ริมกระจก มุมนั่งเล่นหนังคอนญัค และโถงลิฟต์ พื้นหินอ่อนลายเส้นทองฝังวงแหวน ฝ้าไม้ซี่ แกลเลอรีภาพวาด ป้ายผังโรงแรมและป้ายบอกชั้น'},
+  {id:'dining', n:'02', title:'All-Day Dining',       cat:'Level 02',       at:BL(-9, -14, 6),    look:BL(-9, -10, 6), dist:26, imgs:['img/restaurant_1.png','img/restaurant_2.png'],
+   text:'ร้านอาหารนานาชาติ พื้นไม้ก้างปลาขอบหินอ่อนดำเส้นทอง ฉากแขวนท่อทองเหลืองแบ่งโซน เบนช์กำมะหยี่เขียวมรกต ผนังไวน์ แกลเลอรีภาพ 6 ภาพ และโคมแขวนทองเหลือง'},
+  {id:'gym',    n:'03', title:'Fitness & Spa',        cat:'Level 03',       at:BL(9, -14, 9),     look:BL(9, -10, 9),  dist:26, imgs:['img/gym_1.png'],
+   text:'ฟิตเนสกระจกรอบด้านเห็นวิวเมือง แยกโซนคาร์ดิโอ เวทเทรนนิ่ง สตูดิโอโยคะกระจกกั้นกรอบทองเหลืองพร้อมพื้นไม้ ผนังสวนแนวตั้ง และบาร์น้ำ/ผ้าเช็ดตัว'},
+  {id:'suite',  n:'04', title:'Executive Suite',      cat:'Level 16',       at:BL(10, -9, 55),    look:BL(10, -9, 54), dist:30, imgs:['img/suite_A.png'],
+   text:'สวีท 68 ตร.ม. ห้องนั่งเล่น ห้องทานอาหาร ห้องนอน ห้องแต่งตัว ห้องน้ำแยกพร้อมอ่างอาบน้ำและฝักบัวเรนชาวเวอร์ ระเบียงวิวเมือง'},
+  {id:'bar',    n:'05', title:'Rooftop Bar & Pool',   cat:'Level 18',       at:BL(6, 0, 62),      look:BL(4, 0, 58),   dist:26, imgs:['img/pub_bar.png'],
+   text:'บาร์ดาดฟ้าพร้อมสระอินฟินิตี้ ชั้นวางขวดไฟอุ่น เตียงอาบแดด และปาล์ม'},
+  {id:'garden', n:'06', title:'Lagoon Garden',        cat:'Grounds',        at:BL(0, 52, 4),      look:BL(0, 45, 1),   dist:50, imgs:['img/rear_v1.png','img/grounds_v4.png'],
+   text:'สวนด้านหลังพร้อมสระลากูนรูปทรงอิสระ คาบาน่าริมสระ วิลล่าสปา สนามเทนนิส และลู่วิ่งรอบสวน'},
+  {id:'parking',n:'07', title:'Garden Parking',       cat:'Grounds',        at:BL(68, -46, 7),    look:BL(68, -29, 5), dist:60, imgs:['img/grounds_v4.png','img/plan_v1.png'],
+   text:'อาคารจอดรถ 3 ชั้นผนังระแนงไม้และไม้เลื้อย สวนบนดาดฟ้า เชื่อมโรงแรมด้วยทางเดินคลุม ประตูแยกจากถนนริมน้ำ'},
+  {id:'spa',    n:'08', title:'Spa & Events Pavilion',cat:'Grounds',        at:BL(-68, -42, 7),   look:BL(-68, -29, 5),dist:60, imgs:['img/plan_v1.png','img/atmos_v2.png'],
+   text:'ศาลาสปาและห้องจัดงาน 2 ชั้น ผนังกระจกและระแนงไม้ สวนบนดาดฟ้า ประตูทางเข้าแยก'},
+  {id:'walk',  n:'09', title:'Covered Walkways',     cat:'Grounds',        at:BL(40, -18, 4),    look:BL(40, -18, 2), dist:44, imgs:['img/ext_walkway.png','img/ext_drive.png','img/ext_gate.png'],
+   text:'ทางเดินคลุมไม้เลื้อยเชื่อมล็อบบี้ไปอาคารจอดรถและศาลาสปา ปูหินพร้อมไฟนำทาง เดินจากรถถึงห้องโถงโดยไม่ต้องเปียกฝน'},
+  {id:'river', n:'10', title:'River & Bridge',       cat:'Surroundings',   at:BL(-215, -92, 10),  look:BL(-215, -100, 7), dist:90, imgs:['img/ext_river.png','img/ext_city.png'],
+   text:'ถนนริมแม่น้ำ ท่าเรือ เรือโดยสารและเรือบรรทุก สะพานแขวนข้ามฝั่ง ล้อมด้วยผังเมืองจริงของกรุงเทพฯ ที่จางหายเป็นหมอกไปไกล'},
+  {id:'rm_dlx', n:'11', title:'Deluxe King Room',    cat:'Levels 04 - 09',  at:BL(8, -8, 22),     look:BL(8, -8, 22), dist:34, imgs:['img/room_deluxe.png'],
+   text:'ห้อง Deluxe 32 ตร.ม. เตียงคิงไซซ์พร้อมหัวเตียงหุ้มกำมะหยี่ ผนังไม้ซี่ไฟซ่อน โต๊ะข้างเตียงหินอ่อนดำ โต๊ะทำงาน มุมนั่งริมกระจกวิวเมือง และม่านโปร่งสองชั้น'},
+  {id:'rm_club', n:'12', title:'Club Room',           cat:'Levels 10 - 13',  at:BL(-8, -8, 36),    look:BL(-8, -8, 36), dist:34, imgs:['img/room_club.png'],
+   text:'ห้อง Club 38 ตร.ม. โซฟาและเก้าอี้นั่งเล่น ห้องน้ำกระจกกรอบทองพร้อมอ่างอาบน้ำอิสระและฝักบัวเรนชาวเวอร์ สิทธิ์เข้า Club Lounge ชั้น 14'},
+  {id:'rm_exec', n:'13', title:'Executive Suite',     cat:'Levels 15 - 16',  at:BL(8, 0, 50),      look:BL(8, 0, 50), dist:34, imgs:['img/room_suite_1.png','img/room_suite_2.png'],
+   text:'สวีท 68 ตร.ม. แยกห้องรับแขก ห้องทานอาหาร และห้องนอนด้วยฉากไม้ซี่ทองเหลือง ห้องน้ำหินอ่อนพร้อมอ่างอาบน้ำ ผนังภาพศิลปะ และผ้าม่านกำมะหยี่'},
+  {id:'rm_sky', n:'14', title:'Sky Suite',            cat:'Level 17',        at:BL(-8, 0, 57),     look:BL(-8, 0, 57), dist:34, imgs:['img/room_sky_1.png','img/room_sky_2.png'],
+   text:'สกายสวีท 110 ตร.ม. ห้องนั่งเล่นพร้อมบาร์ส่วนตัว ห้องทานอาหาร 6 ที่นั่ง ห้องนอนมาสเตอร์ และห้องน้ำหินอ่อนกว้างพร้อมอ่างอาบน้ำริมหน้าต่างวิวเมือง'}
+];
+const ROOMKEY = {lobby:'lobby', dining:'restaurant', gym:'gym', rm_dlx:'deluxe', rm_club:'club', rm_exec:'suite', rm_sky:'sky', bar:'rooftop'};
+SPOTS.forEach(s => s.room = ROOMKEY[s.id]);
+const VIEWS = {
+  aerial:  {pos:BL(-125, -150, 78), tgt:BL(8, -4, 24)},
+  arrival: {pos:BL(10, -64, 4),      tgt:BL(0, -14, 14)},
+  garden:  {pos:BL(-78, 150, 50),    tgt:BL(0, 36, 14)},
+  rooftop: {pos:BL(34, -34, 66),     tgt:BL(-2, 0, 58)}
+};
+
+/* ---------- renderer / scene ---------- */
+const canvas = $('#gl');
+const renderer = new THREE.WebGLRenderer({canvas, antialias:false, powerPreference:'high-performance'});
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.0;
+const scene = new THREE.Scene();
+(function sky(){
+  const c = document.createElement('canvas'); c.width = 4; c.height = 512; const g = c.getContext('2d'), gr = g.createLinearGradient(0, 0, 0, 512);
+  [[0,'#0b2a66'],[.4,'#2f62b8'],[.7,'#8fb4e0'],[.9,'#e8c9a4'],[1,'#f2b27a']].forEach(([o, col]) => gr.addColorStop(o, col));
+  g.fillStyle = gr; g.fillRect(0, 0, 4, 512); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; scene.background = t;
+})();
+scene.fog = new THREE.FogExp2(0x9db8dc, .00075);
+scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(renderer), .04).texture;
+scene.environmentIntensity = .6;
+const camera = new THREE.PerspectiveCamera(40, 1, .5, 6000);
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true; controls.dampingFactor = .06; controls.rotateSpeed = .55; controls.zoomSpeed = .8; controls.enablePan = false;
+controls.minDistance = 12; controls.maxDistance = 420; controls.maxPolarAngle = Math.PI*.495;
+const hemi = new THREE.HemisphereLight(0xbfd6ff, 0x4a3a2a, .9); scene.add(hemi);
+const sun = new THREE.DirectionalLight(0xffd6a0, 1.5); sun.position.set(-120, 90, 160); scene.add(sun);
+const skyBG = scene.background, fogObj = scene.fog;
+const composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(4, 4, {type:THREE.HalfFloatType, samples:4}));
+composer.addPass(new RenderPass(scene, camera));
+const bloom = new UnrealBloomPass(new THREE.Vector2(512, 512), .35, .6, .92); composer.addPass(bloom); composer.addPass(new OutputPass());
+
+/* ---------- model ---------- */
+let model = null;
+const draco = new DRACOLoader(); draco.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/draco/gltf/');
+const loader = new GLTFLoader(); loader.setDRACOLoader(draco);
+const loaded = new Promise((res, rej) => loader.load('models/hotel_site.glb', g => {
+  model = g.scene;
+  model.traverse(o => {
+    if (!o.isMesh) return;
+    const m = o.material; if (!m) return;
+    m.envMapIntensity = .7;
+    if (m.map && m.map.image && /leaf/i.test(m.name || '')) { m.alphaTest = .5; m.transparent = false; m.side = THREE.DoubleSide; }
+    if (m.transparent) m.depthWrite = false;
+    if (m.emissive && m.emissiveIntensity > 0 && (m.emissive.r + m.emissive.g + m.emissive.b) > 0) { m.emissiveIntensity = Math.min(m.emissiveIntensity, 6); }
+  });
+  scene.add(model); res();
+}, xhr => { if (xhr.total) $('#loading').textContent = 'Loading model ' + Math.round(xhr.loaded/xhr.total*100) + '%'; }, rej));
+
+/* ---------- camera moves ---------- */
+let tw = null; const ease = t => t < .5 ? 8*t*t*t*t : 1 - Math.pow(-2*t + 2, 4)/2;
+function fly(pos, tgt, dur = 2600, arc = 0){
+  return new Promise(res => {
+    if (tw) tw.res(); controls.enabled = false;
+    tw = {t0:performance.now(), dur, p0:camera.position.clone(), g0:controls.target.clone(), p1:pos.clone(), g1:tgt.clone(), arc, res};
+    $('#hotspots').classList.add('hide');
+  });
+}
+function step(){
+  if (!tw) return; const k = Math.min(1, (performance.now() - tw.t0)/tw.dur), e = ease(k);
+  camera.position.lerpVectors(tw.p0, tw.p1, e); camera.position.y += Math.sin(Math.PI*e)*tw.arc;
+  controls.target.lerpVectors(tw.g0, tw.g1, e); camera.lookAt(controls.target);
+  if (k >= 1){ const r = tw.res; tw = null; controls.enabled = true; controls.update(); $('#hotspots').classList.remove('hide'); r(); }
+}
+
+/* ---------- hotspots ---------- */
+const hsLayer = $('#hotspots'); const hsEls = [];
+SPOTS.forEach(s => {
+  const b = document.createElement('button'); b.className = 'hs always'; b.innerHTML = `${s.n}<span class="lb">${s.title}</span>`;
+  b.onclick = e => { e.stopPropagation(); openSpot(s, b); }; hsLayer.appendChild(b); hsEls.push({el:b, s});
+});
+const tmp = new THREE.Vector3();
+function updateHotspots(){
+  const w = innerWidth, h = innerHeight;
+  hsEls.forEach(({el, s}) => {
+    tmp.copy(s.at).project(camera); const dist = camera.position.distanceTo(s.at);
+    const vis = tmp.z < 1 && Math.abs(tmp.x) < 1.05 && Math.abs(tmp.y) < 1.05 && dist < 340;
+    el.classList.toggle('off', !vis); el.style.left = ((tmp.x*.5 + .5)*w) + 'px'; el.style.top = ((-tmp.y*.5 + .5)*h) + 'px';
+  });
+}
+
+/* ---------- drawer ---------- */
+const drawer = $('#room'); let cur = null, gi = 0;
+function openSpot(s, btn){
+  hsEls.forEach(({el}) => el.classList.remove('sel')); btn && btn.classList.add('sel'); cur = s; gi = 0;
+  const dir = camera.position.clone().sub(s.look).setY(0).normalize();
+  fly(s.look.clone().addScaledVector(dir, s.dist).add(new THREE.Vector3(0, s.dist*.32, 0)), s.look, 2200);
+  drawer.innerHTML = `<div class="ph"><img id="gimg" src="${s.imgs[0]}" alt=""><button class="x" aria-label="Close">&times;</button></div>
+    <div class="body"><div class="k">${s.cat}</div><h2>${s.title}</h2><p class="cap">${s.text}</p></div>
+    ${s.imgs.length > 1 ? `<div class="nav"><button id="pv">Prev</button><button id="nx">Next</button></div>` : ''}
+    <div class="th">${s.imgs.map((u, i) => `<img src="${u}" data-i="${i}" class="${i ? '' : 'on'}" alt="">`).join('')}</div>
+    ${s.room ? `<button class="book" id="enter3d">View this room in 3D</button>` : ""}
+    <button class="book" id="enq">Enquire about this space</button>`;
+  const show = i => { gi = (i + s.imgs.length) % s.imgs.length; $('#gimg').src = s.imgs[gi]; drawer.querySelectorAll('.th img').forEach((t, j) => t.classList.toggle('on', j === gi)); };
+  drawer.querySelectorAll('.th img').forEach(t => t.onclick = () => show(+t.dataset.i));
+  const pv = $('#pv'), nx = $('#nx'); if (pv) { pv.onclick = () => show(gi - 1); nx.onclick = () => show(gi + 1); }
+  drawer.querySelector('.x').onclick = closeSpot; { const e3 = $('#enter3d'); if (e3) e3.onclick = () => enterRoom(s.room); } $('#enq').onclick = () => { $('#enq').textContent = 'Concierge  02-000-0000'; };
+  drawer.classList.add('on'); document.body.classList.add('roomopen');
+}
+function closeSpot(){ drawer.classList.remove('on'); document.body.classList.remove('roomopen'); hsEls.forEach(({el}) => el.classList.remove('sel')); cur = null; }
+async function goView(v){
+  closeSpot(); $('#card').classList.remove('on'); document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
+  await fly(VIEWS[v].pos, VIEWS[v].tgt, 3000, v === 'aerial' ? 6 : 14);
+}
+document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => goView(b.dataset.v));
+$('#contact').onclick = () => { $('#card').innerHTML = `<div><div class="k">Reservations</div><div class="big">24/7</div></div><div style="flex:1"><div class="t">Concierge</div><div class="d">โทร 02-000-0000</div></div>`; $('#card').classList.add('on'); };
+addEventListener('keydown', e => { if (e.key === 'Escape') { if (inRoom) { exitRoom(); return; } if (cur) { closeSpot(); goView('aerial'); } else $('#card').classList.remove('on'); } });
+
+
+/* ---------- room overview (cut-away dollhouse view + window view + floor picker) ---------- */
+const ROOMS = {
+  lobby:      {file:'models/room_lobby.glb',      box:[60,84,-300,-286],   top:44.6, name:'Lobby', view:8, tags:[['Reception / เคาน์เตอร์ต้อนรับ',80,-296,41.3],['Elevators / ลิฟต์',70,-299.4,41.5],['Lounge / มุมนั่งเล่น',65.5,-292.5,41],['Grand Piano / เปียโน',63.3,-297,41.8],['Floral Centrepiece / ดอกไม้กลางห้อง',72,-293,42.2],['Directory / ป้ายผังโรงแรม',83.6,-290.8,42],['Window Lounge / ล็อบบี้ริมกระจก',72,-287.5,41]]},
+  restaurant: {file:'models/room_restaurant.glb', box:[100,124,-300,-285], top:44.0, name:'All-Day Dining', view:8, tags:[['Buffet & Live Stations / บุฟเฟต์',112,-287,41.4],['Open Kitchen / ครัวเปิด',120.5,-299,41.4],['Wine Wall / ชั้นไวน์',123.2,-292,42],['Banquettes / เบนช์',111,-298,41.2],['Floral Centrepiece / ดอกไม้',112,-291.5,42.2],['Dining Tables / โต๊ะอาหาร',105,-291.7,41.2]]},
+  gym:        {file:'models/room_gym.glb',        box:[140,164,-300,-286], top:43.6, name:'Fitness & Spa', view:17, tags:[['Yoga Studio / สตูดิโอโยคะ',145.8,-296.5,41],['Cardio / คาร์ดิโอ',155,-294,41.2],['Juice Bar / บาร์น้ำ',160,-287.5,41.4],['Vertical Garden / สวนแนวตั้ง',163.8,-293,42.2]]},
+  deluxe:     {file:'models/room_deluxe.glb',     box:[0,7,-250,-245],     top:43.3, name:'Deluxe King', view:17, tags:[['Bed / เตียงคิง',3.4,-249,41.2],['Bathroom / ห้องน้ำ',1.7,-247.6,41.4],['TV / ทีวี',0.3,-248.5,41.8],['Work Desk / โต๊ะทำงาน',6.5,-248,41.2],['Sitting Area / มุมนั่ง',5.2,-246.5,41],['Balcony / ระเบียง',3.5,-244.2,41]]},
+  club:       {file:'models/room_club.glb',       box:[30,38,-250,-244.4], top:43.3, name:'Club Room', view:34, tags:[['Bed / เตียงคิง',33,-249,41.2],['Bathroom / ห้องน้ำ',31.7,-247.4,41.4],['TV / ทีวี',30.3,-248.7,41.8],['Sofa / โซฟา',35.6,-245.7,41],['Work Desk / โต๊ะทำงาน',37.5,-248,41.2],['Balcony / ระเบียง',34,-242.4,41]]},
+  suite:      {file:'models/room_suite.glb',      box:[60,71,-250,-243.6], top:43.3, name:'Executive Suite', view:45, tags:[['Living / ห้องรับแขก',62.7,-246.5,41],['TV / ทีวี',60.3,-246.8,41.8],['Dining / ห้องทานอาหาร',62.7,-248.8,41.4],['Bedroom / ห้องนอน',68.2,-249.4,41.2],['Bathroom / ห้องน้ำ',69.1,-245.4,41.4],['Desk / โต๊ะทำงาน',70.5,-247.6,41.2],['Balcony / ระเบียง',65.5,-241.5,41]]},
+  sky:        {file:'models/room_sky.glb',        box:[100,114,-250,-242], top:43.3, name:'Sky Suite', view:55, tags:[['Living / ห้องรับแขก',103.5,-244.6,41],['TV / ทีวี',100.3,-246,41.8],['Dining / ห้องทานอาหาร',103.5,-248.8,41.4],['Master Bedroom / ห้องนอน',110.5,-249.4,41.2],['Bathroom / ห้องน้ำ',111.7,-244,41.4],['Private Bar / บาร์ส่วนตัว',100.4,-246.6,41.4],['Desk / โต๊ะทำงาน',113.4,-247.6,41.2],['Balcony / ระเบียง',107,-239.5,41]]},
+  lounge:     {file:'models/room_lounge.glb',     box:[140,152,-250,-242], top:43.3, name:'Club Lounge', view:45, tags:[['Bar / บาร์',143.5,-249,41.4],['Library / ห้องสมุด',140.3,-245,42],['Seating / มุมนั่ง',143.2,-244.6,41],['Seating / มุมนั่ง',147.4,-244.4,41],['Balcony / ระเบียง',146,-239.5,41]]},
+  pool:       {file:'models/room_pool.glb',       box:[170,184,-250,-241], top:46,   name:'Pool Deck', view:34, tags:[['Pool / สระว่ายน้ำ',177,-244.8,41],['Sun Loungers / เตียงอาบแดด',174,-246.6,41],['Pool Bar / บาร์สระ',180,-249,41.4]]},
+  rooftop:    {file:'models/room_rooftop.glb',    box:[179,209,-301,-285], top:46,   name:'Rooftop Bar & Pool', view:55, tags:[['Rooftop Bar / บาร์ดาดฟ้า',194,-293,42],['Sky Pool / สระอินฟินิตี้',196,-289,41]]}
+};
+const FLOORS = [[18,'rooftop','Rooftop Bar & Pool'],[17,'sky','Sky Suites'],[16,'suite','Executive Suites'],[15,'suite','Executive Suites'],[14,'lounge','Club Lounge'],[13,'club','Club Rooms'],[12,'club','Club Rooms'],[11,'club','Club Rooms'],[10,'club','Club Rooms'],[9,'pool','Pool Deck'],[8,'deluxe','Deluxe King'],[7,'deluxe','Deluxe King'],[6,'deluxe','Deluxe King'],[5,'deluxe','Deluxe King'],[4,'deluxe','Deluxe King'],[3,'gym','Fitness & Spa'],[2,'restaurant','All-Day Dining'],['G','lobby','Lobby & Reception']];
+const roomCache = {}, viewTex = {}; let inRoom = null, inRoomLevel = ''; const saved = {}; const roomPlane = new THREE.Plane(new THREE.Vector3(0, -1, 0), 99);
+let viewMesh = null, roomMode = 'over';
+const roomTagLayer = document.createElement('div'); roomTagLayer.id = 'roomtags'; roomTagLayer.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:30'; document.body.appendChild(roomTagLayer);
+let roomTags = [];
+// floor picker + room UI
+const floorsEl = document.createElement('div'); floorsEl.id = 'floors'; floorsEl.style.cssText = 'position:fixed;right:18px;top:50%;transform:translateY(-50%);z-index:25;display:flex;flex-direction:column;gap:3px;font:400 10px/1 Jost,sans-serif;letter-spacing:.14em';
+FLOORS.forEach(([lv, key, nm]) => { const b = document.createElement('button'); b.innerHTML = `<b style="display:inline-block;width:20px;color:#c9a24a">${lv}</b>${nm}`; b.title = 'Level ' + lv + ' - ' + nm; b.style.cssText = 'background:rgba(8,7,5,.66);color:#efe8da;border:1px solid rgba(201,162,74,.35);padding:6px 10px;text-align:left;cursor:pointer;text-transform:uppercase;backdrop-filter:blur(4px)'; b.onmouseenter = () => b.style.borderColor = '#c9a24a'; b.onmouseleave = () => b.style.borderColor = 'rgba(201,162,74,.35)'; b.onclick = () => { inRoomLevel = lv; if (inRoom) exitRoom(true); enterRoom(key, lv, nm); }; floorsEl.appendChild(b); });
+document.body.appendChild(floorsEl);
+const roomUI = document.createElement('div'); roomUI.style.cssText = 'position:fixed;top:128px;right:26px;z-index:40;display:none;flex-direction:column;gap:8px'; roomUI.innerHTML = '<button class="ghost" id="rv_over">Overview</button><button class="ghost" id="rv_win">Window view</button>'; document.body.appendChild(roomUI);
+const roomTitle = document.createElement('div'); roomTitle.style.cssText = 'position:fixed;left:50%;top:70px;transform:translateX(-50%);z-index:40;display:none;font:300 12px/1 Jost,sans-serif;letter-spacing:.42em;text-transform:uppercase;color:#efe8da;text-shadow:0 1px 8px #000'; document.body.appendChild(roomTitle);
+function prepRoom(g){
+  g.traverse(o => {
+    if (!o.isMesh) return; const m = o.material; if (!m) return;
+    m.envMapIntensity = .6;
+    if (m.name === 'LuxSheer') { m.transparent = true; m.opacity = .3; m.depthWrite = false; m.side = THREE.DoubleSide; }
+    if (m.emissive && m.emissiveIntensity > 0) m.emissiveIntensity = Math.min(m.emissiveIntensity, 1.6);
+  });
+  return g;
+}
+function viewTexture(n){ if (!viewTex[n]) { viewTex[n] = new THREE.TextureLoader().load('img/view_' + n + '.jpg'); viewTex[n].colorSpace = THREE.SRGBColorSpace; } return viewTex[n]; }
+function setOverview(){
+  const R = ROOMS[inRoom]; roomMode = 'over'; const [x0, x1, y0, y1] = R.box, S = Math.max(x1 - x0, y1 - y0), cxm = (x0 + x1) / 2, cym = (y0 + y1) / 2;
+  renderer.clippingPlanes = [roomPlane]; camera.near = .1; camera.updateProjectionMatrix();
+  controls.enablePan = true; controls.enableZoom = true; controls.rotateSpeed = .55; controls.minDistance = Math.max(1.5, S * .25); controls.maxDistance = S * 3.2; controls.maxPolarAngle = Math.PI * .49;
+  controls.target.copy(BL(cxm, cym, 40.5)); camera.position.copy(BL(cxm + S * .15, cym + S * .75, 40.5 + S * .85)); controls.update();
+  roomTags.forEach(t => t.el.style.visibility = 'visible'); $('#hint').textContent = 'Drag to rotate  /  Scroll to zoom  /  Right-drag to move  /  Esc to leave';
+}
+function setWindow(){
+  const R = ROOMS[inRoom]; roomMode = 'win'; const [x0, x1, y0, y1] = R.box, cxm = (x0 + x1) / 2, cym = (y0 + y1) / 2;
+  renderer.clippingPlanes = []; camera.near = .05; camera.updateProjectionMatrix();
+  const pos = BL(cxm, Math.min(y1 - 2.4, cym + (y1 - y0) * .1), 41.7), dir = BL(cxm, y1 + 40, 41.6).sub(pos).normalize();
+  camera.position.copy(pos); controls.target.copy(pos).addScaledVector(dir, .01); controls.enablePan = false; controls.enableZoom = false; controls.rotateSpeed = -.35; controls.minDistance = .01; controls.maxDistance = .01; controls.maxPolarAngle = Math.PI * .96; controls.update();
+  roomTags.forEach(t => t.el.style.visibility = 'hidden'); $('#hint').textContent = 'Drag to look around  /  Overview to return';
+}
+async function enterRoom(key, level, title){
+  const R = ROOMS[key]; if (!R || inRoom) return;
+  closeSpot(); $('#loading').style.opacity = 1; $('#loading').textContent = 'Loading ' + R.name;
+  try {
+    if (!roomCache[key]) roomCache[key] = prepRoom(await new Promise((res, rej) => loader.load(R.file, g => res(g.scene), undefined, rej)));
+  } catch (e) { $('#loading').textContent = 'Room failed to load'; return; }
+  $('#loading').style.opacity = 0;
+  inRoom = key; scene.add(roomCache[key]);
+  if (!saved.set) Object.assign(saved, {set:1, minD:controls.minDistance, maxD:controls.maxDistance, pol:controls.maxPolarAngle, near:camera.near, envI:scene.environmentIntensity, hemi:hemi.intensity, sunI:sun.intensity, pan:controls.enablePan, zoom:controls.enableZoom, rot:controls.rotateSpeed});
+  model.visible = false; hemi.intensity = .9; sun.intensity = 1.15; scene.background = new THREE.Color(0x14100c); scene.fog = null; scene.environmentIntensity = .9;
+  roomPlane.constant = R.top - .28;
+  $('#hotspots').classList.add('hide'); $('#tabs').style.visibility = 'hidden'; $('#exitroom').style.display = 'block'; roomUI.style.display = 'flex'; floorsEl.style.display = 'flex';
+  roomTitle.style.display = 'block'; roomTitle.textContent = (level ? 'Level ' + level + '   -   ' : '') + (title || R.name);
+  const [x0, x1, y0, y1] = R.box;
+  viewMesh = new THREE.Mesh(new THREE.PlaneGeometry(150, 75), new THREE.MeshBasicMaterial({map:viewTexture(R.view), toneMapped:false, side:THREE.DoubleSide})); viewMesh.position.copy(BL((x0 + x1) / 2, y1 + 60, 41.6)); scene.add(viewMesh);
+  roomTagLayer.innerHTML = ''; roomTags = R.tags.map(t => { const el = document.createElement('div'); el.textContent = t[0]; el.style.cssText = 'position:absolute;transform:translate(-50%,-120%);padding:4px 9px;font:400 11px/1.2 Jost,sans-serif;letter-spacing:.12em;white-space:nowrap;color:#efe8da;background:rgba(8,7,5,.62);border-left:1px solid #c9a24a'; roomTagLayer.appendChild(el); return {el, p:BL(t[1], t[2], t[3])}; });
+  controls.enabled = true; setOverview();
+}
+function exitRoom(keep){
+  if (!inRoom) return; scene.remove(roomCache[inRoom]); if (viewMesh) { scene.remove(viewMesh); viewMesh = null; } inRoom = null; renderer.clippingPlanes = []; roomTagLayer.innerHTML = ''; roomTags = [];
+  if (keep === true) return;
+  model.visible = true; hemi.intensity = saved.hemi; sun.intensity = saved.sunI; scene.background = skyBG; scene.fog = fogObj; scene.environmentIntensity = saved.envI;
+  controls.minDistance = saved.minD; controls.maxDistance = saved.maxD; controls.maxPolarAngle = saved.pol; controls.enablePan = saved.pan; controls.enableZoom = saved.zoom; controls.rotateSpeed = saved.rot;
+  camera.near = saved.near; camera.updateProjectionMatrix(); saved.set = 0;
+  $('#hotspots').classList.remove('hide'); $('#tabs').style.visibility = 'visible'; $('#exitroom').style.display = 'none'; roomUI.style.display = 'none'; roomTitle.style.display = 'none';
+  $('#hint').innerHTML = 'Drag to orbit &nbsp;/&nbsp; Select a marker to step inside';
+  camera.position.copy(VIEWS.aerial.pos); controls.target.copy(VIEWS.aerial.tgt); controls.update();
+}
+$('#exitroom').onclick = () => exitRoom(); $('#rv_over').onclick = () => inRoom && setOverview(); $('#rv_win').onclick = () => inRoom && setWindow();
+const _tp = new THREE.Vector3();
+function walk(){
+  if (!inRoom || roomMode !== 'over') return; const w = innerWidth, h = innerHeight;
+  roomTags.forEach(t => { _tp.copy(t.p).project(camera); const vis = _tp.z < 1 && Math.abs(_tp.x) < 1.05 && Math.abs(_tp.y) < 1.05; t.el.style.display = vis ? 'block' : 'none'; t.el.style.left = ((_tp.x * .5 + .5) * w) + 'px'; t.el.style.top = ((-_tp.y * .5 + .5) * h) + 'px'; });
+}
+
+/* ---------- loop / boot ---------- */
+function resize(){ const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); composer.setSize(w, h); bloom.setSize(w, h); camera.aspect = w/h; camera.updateProjectionMatrix(); }
+addEventListener('resize', resize); resize();
+function tick(){ step(); walk(); controls.update(); updateHotspots(); composer.render(); requestAnimationFrame(tick); }
+$('#brand').innerHTML = `${NAME}<small>โรงแรม 5 ดาว 18 ชั้น</small>`; $('#iw').textContent = NAME;
+camera.position.copy(BL(-40, -70, 6)); controls.target.copy(BL(0, -14, 14)); camera.lookAt(controls.target); controls.enabled = false;
+tick();
+(async () => {
+  await Promise.all([loaded.catch(e => { $('#loading').textContent = 'Model failed to load: ' + e.message; throw e; }), sleep(2600)]);
+  $('#loading').style.opacity = 0; $('#intro').classList.add('out'); await sleep(500);
+  await fly(VIEWS.aerial.pos, VIEWS.aerial.tgt, 5200, 10);
+})();
+</script>
+</body>
+</html>

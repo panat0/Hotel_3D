@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Aurelia Floor Plans</title>
+<style>
+  :root{--bg:#f4efe6;--ink:#1d1a16;--mut:#6d655a;--gold:#a8803a}
+  body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 "Noto Sans Thai",system-ui,sans-serif}
+  header{padding:28px 24px 8px} h1{font:400 26px/1.2 Georgia,serif;letter-spacing:.06em;margin:0} p{color:var(--mut);margin:.4em 0 0}
+  .tabs{display:flex;gap:8px;flex-wrap:wrap;padding:12px 24px}
+  .tabs button{border:1px solid var(--gold);background:none;padding:7px 14px;cursor:pointer;font:inherit;color:var(--ink)}
+  .tabs button.on{background:var(--gold);color:#fff}
+  .sheet{padding:0 16px 24px} svg{width:100%;height:auto;background:#fff;border:1px solid #ddd2bf}
+  table{border-collapse:collapse;margin:12px 24px;font-size:13px} td,th{border-bottom:1px solid #ddd2bf;padding:5px 12px;text-align:left}
+</style>
+</head>
+<body>
+<header><h1>AURELIA TOWER · Floor Plans (all levels)</h1><p>ผังชั้นจริงจากข้อมูลเดียวกับโมเดล 3D (สเกล 1 ช่องตาราง = 1 ม.) · ด้านล่างของภาพ = ฝั่งแม่น้ำ</p></header>
+<div class="tabs" id="tabs"></div>
+<div class="sheet"><svg id="svg"></svg></div>
+<table id="sched"></table>
+<script type="module">
+import {floorLayout, GX, GY, GCH, ROOM_NAMES} from './js/layout.js';
+const PODX = 24.45, PODY = 13.95;
+const COL = {wine:'#4a0d16', soil:'#2e2118', trunk:'#4a3523', leafDark:'#23502a', chrome:'#dfe3e6', screen:'#0b1018', skin:'#c99a78', tubIn:'#fff', pianoBlack:'#111', bread:'#b9803e', chef:'#333', rubber:'#3a3b3e', woodSauna:'#c9995e', deck:'#b48a62', wall:'#3a332b', concrete:'#5a554e', marble:'#d8d0c2', marbleBlack:'#222', marbleDark:'#8f8a83', marbleFloor:'#ece7de', woodFloor:'#e9dcc6', floorStone:'#e2dccf', floorService:'#d9d6cf', carpetRed:'#a3313a',
+  walnut:'#6b4a2e', linen:'#fbf8f2', duvet:'#fffdf8', throw:'#2f6b4f', velvetCream:'#e9dcc4', velvetBlush:'#d9a9a2', velvetGreen:'#3f7a5e', velvetNavy:'#34507a', leather:'#8a4b26', rug:'#cfc0a4',
+  ceramic:'#ffffff', glassShower:'#a8d4e6', mirror:'#cfe3ea', tv:'#111', gold:'#c9a24a', steel:'#9aa0a6', stair:'#c9c1b2', stairNose:'#888', sheer:'#f5f2ec', drape:'#b9a98c', acWhite:'#e8eef2', acGrille:'#999',
+  pot:'#d9d0be', leaf:'#4c8a4e', blossom:'#e2a6b4', lampShade:'#fff2d8', water:'#9fd2e6', towel:'#fff', art:'#6a3a3a', book:'#7a5a3a', red:'#c33', black:'#000', lampGlow:'#ffd9a0', glassClear:'#cde', bottleGreen:'#2f6b34', linenDk:'#bbb'};
+const FLOORS = [['G', 'G · Lobby'], [2, 'L2 · Dining'], [3, 'L3 · Fitness & Spa'], [4, 'L4-8 · Deluxe'], [9, 'L9 · Pool'], [10, 'L10-13 · Club'], [14, 'L14 · Club Lounge'], [15, 'L15-16 · Executive'], [17, 'L17 · Presidential'], [18, 'L18 · Rooftop']];
+let S = 34, PAD = 1.2, EX = GX, EY = GY, W = 0, H = 0;
+const sx = x => (x + EX + PAD) * S, sy = y => (-y + EY + PAD) * S;
+function draw(lv){
+  const L = floorLayout(lv), svg = document.getElementById('svg'); EX = L.podium ? PODX : GX; EY = L.podium ? PODY : GY; S = L.podium ? 20 : 34; W = (EX + PAD) * 2 * S; H = (EY + PAD) * 2 * S; svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  let o = '';
+  for (let x = -Math.floor(EX); x <= EX; x++) o += `<line x1="${sx(x)}" y1="${sy(EY + .6)}" x2="${sx(x)}" y2="${sy(-EY - .6)}" stroke="#f1ece3"/>`;
+  for (let y = -Math.floor(EY); y <= EY; y++) o += `<line x1="${sx(-EX - .6)}" y1="${sy(y)}" x2="${sx(EX + .6)}" y2="${sy(y)}" stroke="#f1ece3"/>`;
+  const oct = L.podium ? [[-24.09, 13.59], [24.09, 13.59], [24.09, -13.59], [-24.09, -13.59]] : [[-12.45, GY], [12.45, GY], [GX, 6.68], [GX, -6.68], [12.45, -GY], [-12.45, -GY], [-GX, -6.68], [-GX, 6.68]];
+  o += `<polygon points="${oct.map(([x, y]) => sx(x) + ',' + sy(y)).join(' ')}" fill="#faf7f1" stroke="#7fb3c9" stroke-width="5"/>`;
+  const items = L.items.filter(i => i.t !== 'clear').sort((a, b) => (a.z1 - b.z1) || ((a.m === 'wall' || a.m === 'concrete') - (b.m === 'wall' || b.m === 'concrete')));
+  for (const i of items) {
+    if (i.z0 > 2.2 && i.m !== 'acWhite') continue;                 // drop headers above door height
+    if (i.z0 < -.1) continue;                                      // lower-level stair flight
+    const c = COL[i.m] || '#ccc', st = (i.m === 'wall' || i.m === 'concrete') ? '' : ' stroke="#00000033" stroke-width="0.7"';
+    if (i.t === 'p') { if (['curtain', 'chandelier', 'pendant', 'umbrella', 'towelBar'].includes(i.kind)) continue; if (i.round) { o += `<circle cx="${sx(i.cx)}" cy="${sy(i.cy)}" r="${i.w / 2 * S}" fill="${c}"${st}/>`; continue; }
+      const cs = Math.cos(i.ang), sn = Math.sin(i.ang), pts = [[-i.w / 2, -i.d / 2], [i.w / 2, -i.d / 2], [i.w / 2, i.d / 2], [-i.w / 2, i.d / 2]].map(([x, y]) => sx(i.cx + x * cs - y * sn) + ',' + sy(i.cy + x * sn + y * cs)).join(' ');
+      o += `<polygon points="${pts}" fill="${c}"${st}/>`; const bx = i.cx - .3 * i.d / 2 * -sn, by = i.cy + .3 * i.d / 2 * cs; o += `<line x1="${sx(i.cx - sn * i.d * .45 - cs * i.w * .4)}" y1="${sy(i.cy + cs * i.d * .45 - sn * i.w * .4)}" x2="${sx(i.cx - sn * i.d * .45 + cs * i.w * .4)}" y2="${sy(i.cy + cs * i.d * .45 + sn * i.w * .4)}" stroke="#00000055" stroke-width="1.5"/>`; continue; }
+    if (i.t === 'b') o += `<rect x="${sx(i.x0)}" y="${sy(i.y1)}" width="${(i.x1 - i.x0) * S}" height="${(i.y1 - i.y0) * S}" fill="${c}"${st}${i.m === 'glassShower' ? ' opacity=".7"' : ''}/>`;
+    else o += `<circle cx="${sx(i.x)}" cy="${sy(i.y)}" r="${i.r * S}" fill="${c}"${st}/>`;
+  }
+  for (const r of L.rooms) {
+    const cx = sx((r.x0 + r.x1) / 2), cy = sy((r.y0 + r.y1) / 2);
+    o += `<text x="${cx}" y="${cy - 6}" text-anchor="middle" font-size="15" font-weight="600" fill="#1d1a16" stroke="#fff" stroke-width="4" paint-order="stroke">${r.num} ${r.name}</text><text x="${cx}" y="${cy + 12}" text-anchor="middle" font-size="12" fill="#5a5146" stroke="#fff" stroke-width="3" paint-order="stroke">${r.area} m² · ${r.view}</text>`;
+  }
+  for (const [t, x, y] of L.labels) o += `<text x="${sx(x)}" y="${sy(y)}" text-anchor="middle" font-size="11" fill="#7a5b1e" stroke="#fff" stroke-width="3" paint-order="stroke">${t}</text>`;
+  o += `<text x="${sx(0)}" y="${sy(-EY - .85)}" text-anchor="middle" font-size="13" fill="#3a6e88">▼ RIVER · แม่น้ำ${L.podium ? '  ·  MAIN ENTRANCE ทางเข้า' : ''}</text>`;
+  svg.innerHTML = o;
+  document.getElementById('sched').innerHTML = '<tr><th>Room</th><th>Type</th><th>Tier</th><th>Area</th><th>View</th></tr>' + L.rooms.map(r => `<tr><td>${r.num}</td><td>${r.name}</td><td>${r.tier}</td><td>${r.area} m²</td><td>${r.view}</td></tr>`).join('');
+}
+const tabs = document.getElementById('tabs');
+FLOORS.forEach(([lv, n], i) => { const b = document.createElement('button'); b.textContent = n; b.onclick = () => { tabs.querySelectorAll('button').forEach(x => x.classList.remove('on')); b.classList.add('on'); draw(lv); }; tabs.appendChild(b); if (!i) { b.classList.add('on'); draw(lv); } });
+</script>
+</body>
+</html>
