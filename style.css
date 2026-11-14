@@ -62,7 +62,7 @@ nav button:hover,nav button.on{color:var(--ink)}nav button.on::after{transform:s
 #card .d{font-size:12px;line-height:1.7;color:var(--mut);margin-top:6px;max-width:340px}
 
 /* room drawer */
-#room{position:fixed;left:24px;top:96px;bottom:24px;width:372px;z-index:22;background:rgba(10,9,8,.94);border:1px solid var(--line);display:flex;flex-direction:column;overflow:auto;
+#room{position:fixed;left:24px;bottom:24px;width:340px;max-height:min(46vh,420px);z-index:22;background:rgba(10,9,8,.94);border:1px solid var(--line);display:flex;flex-direction:column;overflow:auto;
   transform:translateX(-120%);transition:transform 1s var(--ease)}
 #room.on{transform:none}
 body.roomopen #back,body.roomopen #ftitle{opacity:0;pointer-events:none}
@@ -71,15 +71,15 @@ body.roomopen #back,body.roomopen #ftitle{opacity:0;pointer-events:none}
 @keyframes kb{from{transform:scale(1)}to{transform:scale(1.08)}}
 #room .x{position:absolute;right:14px;top:14px;width:32px;height:32px;border-radius:50%;border:1px solid rgba(239,232,218,.6);background:rgba(0,0,0,.4);cursor:pointer;font-size:16px;line-height:1}
 #room .x:hover{background:var(--ink);color:#000}
-#room .body{padding:24px 26px 8px}
+#room .body{padding:6px 22px 4px}
 #room .k{font-size:9px;letter-spacing:.32em;color:var(--gold);text-transform:uppercase}
-#room h2{font-family:var(--serif);font-weight:300;font-size:36px;line-height:1.1;margin:10px 0 20px}
+#room h2{font-family:var(--serif);font-weight:300;font-size:26px;line-height:1.15;margin:6px 0 10px}
 #room .g{display:grid;grid-template-columns:1fr 1fr;gap:18px 20px;margin-bottom:22px}
 #room .g small{display:block;font-size:9px;letter-spacing:.28em;color:var(--mut);text-transform:uppercase;margin-bottom:5px}
 #room .g span{font-family:var(--serif);font-size:21px}
 #room .pr{display:flex;justify-content:space-between;align-items:baseline;border-top:1px solid var(--line);padding:16px 0 18px}
 #room .pr b{font-family:var(--serif);font-size:30px;font-weight:300}#room .pr small{font-size:9px;letter-spacing:.28em;color:var(--mut)}
-#room .book{width:calc(100% - 52px);margin:0 26px;padding:15px;background:var(--ink);color:#0b0a08;border:0;font-size:10px;letter-spacing:.34em;text-transform:uppercase;cursor:pointer;transition:.5s var(--ease)}
+#room .book{width:calc(100% - 44px);margin:0 22px 18px;padding:11px;background:var(--ink);color:#0b0a08;border:0;font-size:10px;letter-spacing:.34em;text-transform:uppercase;cursor:pointer;transition:.5s var(--ease)}
 #room .book:hover{background:var(--gold)}#room .book[disabled]{background:transparent;color:var(--mut);border:1px solid var(--line);cursor:default}
 #room .th{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:20px 26px 26px}
 #room .th img{width:100%;aspect-ratio:4/3;object-fit:cover;cursor:pointer;opacity:.5;border:1px solid transparent;transition:.4s;display:block}
@@ -112,3 +112,9 @@ body.roomopen #back,body.roomopen #ftitle{opacity:0;pointer-events:none}
   #picker{right:14px}#back{left:20px;top:100px}#ftitle{left:20px;top:140px}#ftitle h3{font-size:32px}#card{left:20px;bottom:24px;gap:20px;flex-wrap:wrap}#card .big{font-size:40px}#hint{display:none}
   #room{left:0;right:0;top:auto;bottom:0;width:auto;height:62%}
 }
+
+.ghost.sm{padding:8px 14px;font-size:9px;letter-spacing:.22em;box-shadow:none}
+#exitroom{display:none!important}
+#room .cap{font-size:12.5px!important;line-height:1.7!important;margin:0 0 14px!important}
+@media (max-width:760px){#roomui{flex-wrap:wrap;justify-content:center;width:calc(100% - 24px)}}
+#room .th:empty{display:none}

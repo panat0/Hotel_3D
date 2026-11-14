@@ -8,12 +8,12 @@ export const FLOOR_H = 3.4, SLAB_T = .45, CEIL = 2.75;
 export const GX = 13.85, GY = 8.07, GCH = 1.4;          // glass half-length, half-depth, corner chamfer
 export const SLAB = {x: 14.31, y: 8.53, ch: 1.8};       // slab edge (chamfered)
 export const IX = 13.75, IY = 7.95;                     // interior finish line
-export const COR = 1.1, CW = .2;                        // corridor half width, corridor wall thickness
+export const COR = 1.1, CW = .25;                        // corridor half width, corridor wall thickness
 export const V0 = COR + CW;                             // room depth starts here (|y|)
 export const D = IY - V0;                               // room depth 6.65 m
 export const BAY = 24.9 / 17;                           // curtain-wall mullion spacing
 export const xb = k => -12.45 + k * BAY;                // mullion x for bay index k (0..17)
-export const PW = .15;                                  // party wall thickness
+export const PW = .25;                                  // party wall thickness
 
 // is point (x,y) inside the interior octagon (with a small inset)
 export function insideTower(x, y, inset = .1){
@@ -27,10 +27,13 @@ export const STAIR = {land: 1.4, run: 2.8, risers: 10, rise: FLOOR_H / 20, tread
 export const CORE = {x0: xb(5) + PW / 2, x1: xb(12) - PW / 2, lobby: 1.9, shaftD: 2.45};
 export const SHAFTS = (() => { const w = (CORE.x1 - CORE.x0 - .15 * 5) / 4, a = []; for (let i = 0; i < 4; i++) { const x0 = CORE.x0 + .15 + i * (w + .15); a.push({x0, x1: x0 + w, y0: V0 + CORE.lobby + .15, y1: V0 + CORE.lobby + .15 + CORE.shaftD, service: i === 0}); } return a; })();
 // slab openings (stair wells + lift shafts), y > 0 side
-export function slabHoles(){
+export const TOP_LIFT = 17;
+export const SKYSTAIR = {u0: .15, u1: 1.95, v0: .6, v1: 5.2};       // L17 west back room, flight rising toward the corridor                              // lifts serve G..L17; the roof deck (L18) is reached by the stairs
+export function slabHoles(lv){
   const h = [];
   for (const s of STAIRS) h.push({x0: s.x0, x1: s.x1, y0: V0 + STAIR.land, y1: V0 + STAIR.land + STAIR.run + STAIR.land});
-  for (const s of SHAFTS) h.push({x0: s.x0, x1: s.x1, y0: s.y0, y1: s.y1});
+  if (lv !== 18) for (const s of SHAFTS) h.push({x0: s.x0, x1: s.x1, y0: s.y0, y1: s.y1});
+  if (lv === 18) { const xr = xb(3) - PW / 2; h.push({x0: xr - SKYSTAIR.u1, x1: xr - SKYSTAIR.u0, y0: V0 + SKYSTAIR.v0, y1: V0 + SKYSTAIR.v1}); }
   return h;
 }
 
@@ -40,14 +43,14 @@ const RIVER = {deluxe: [[-1, 4, 'deluxeCorner'], [4, 7, 'deluxe'], [7, 10, 'delu
                club:   [[-1, 4, 'clubCorner'], [4, 8, 'club'], [8, 13, 'clubPlus'], [13, 18, 'clubCorner']],
                suite:  [[-1, 6, 'execSuite'], [6, 11, 'juniorSuite'], [11, 18, 'execSuite']],
                sky:    [[-1, 18, 'presidential']],
-               pool:   [[-1, 18, 'poolHall']],
+               pool:   [[-1, 18, 'skyGarden']],
                lounge: [[-1, 18, 'clubLounge']]};
-const BACK = {deluxe: 'deluxeCorner', club: 'clubCorner', suite: 'clubCorner', sky: 'clubCorner', pool: ['changingM', 'changingF'], lounge: ['meeting', 'business']};
+const BACK = {deluxe: 'deluxeCorner', club: 'clubCorner', suite: 'clubCorner', sky: ['skyStair', 'clubCorner'], pool: ['kidsClub', 'gamesRoom'], lounge: ['meeting', 'business']};
 export const ROOM_NAMES = {deluxe: 'Deluxe King', deluxeCorner: 'Deluxe Corner King', club: 'Club Room', clubPlus: 'Club Premier', clubCorner: 'Club Corner',
-  juniorSuite: 'Junior Suite', execSuite: 'Executive Suite', presidential: 'Presidential Sky Suite', poolHall: 'Indoor Pool & Wellness', clubLounge: 'Club Lounge',
+  juniorSuite: 'Junior Suite', execSuite: 'Executive Suite', presidential: 'Presidential Sky Suite', poolHall: 'Indoor Pool & Wellness', skyGarden: 'Sky Garden & Library', kidsClub: 'Kids Club', gamesRoom: 'Games Room', skyStair: 'Sky Deck Stair', clubLounge: 'Club Lounge',
   changingM: 'Changing Room (Men)', changingF: 'Changing Room (Women)', meeting: 'Boardroom (10 seats)', business: 'Business Centre'};
-export const ROOM_TIER = {deluxe: 'Deluxe', deluxeCorner: 'Deluxe', club: 'Luxury', clubPlus: 'Luxury', clubCorner: 'Luxury', juniorSuite: 'Luxury Suite', execSuite: 'Luxury Suite', presidential: 'Ultra Luxury', poolHall: 'Amenity', clubLounge: 'Amenity', changingM: 'Amenity', changingF: 'Amenity', meeting: 'Amenity', business: 'Amenity'};
-export function guestType(lv){ if (lv === 'G') return null; if (lv === 17) return 'sky'; if (lv === 15 || lv === 16) return 'suite'; if (lv === 9) return 'pool'; if (lv === 14) return 'lounge'; if (lv >= 10 && lv <= 13) return 'club'; if (lv >= 4 && lv <= 8) return 'deluxe'; return null; }
+export const ROOM_TIER = {deluxe: 'Deluxe', deluxeCorner: 'Deluxe', club: 'Luxury', clubPlus: 'Luxury', clubCorner: 'Luxury', juniorSuite: 'Luxury Suite', execSuite: 'Luxury Suite', presidential: 'Ultra Luxury', poolHall: 'Amenity', skyGarden: 'Amenity', kidsClub: 'Amenity', gamesRoom: 'Amenity', skyStair: 'Amenity', clubLounge: 'Amenity', changingM: 'Amenity', changingF: 'Amenity', meeting: 'Amenity', business: 'Amenity'};
+export function guestType(lv){ if (lv === 'G') return null; if (lv === 17) return 'sky'; if (lv === 15 || lv === 16) return 'suite'; if (lv === 9) return null; if (lv === 14) return 'lounge'; if (lv >= 10 && lv <= 13) return 'club'; if (lv >= 4 && lv <= 8) return 'deluxe'; return null; }
 
 const bx = k => k < 0 ? -IX : k > 17 ? IX : xb(k);
 
@@ -76,6 +79,27 @@ export function floorLayout(lv){
   };
   const box = (m, x0, x1, y0, y1, z0, z1, o = {}) => add({t: o.clear ? 'clear' : 'b', door: o.door, m, x0: Math.min(x0, x1), x1: Math.max(x0, x1), y0: Math.min(y0, y1), y1: Math.max(y0, y1), z0, z1, s: o.clear ? false : (o.s ?? true), room: o.room ?? 'common', tag: o.tag, soft: o.soft});
   const cyl = (m, x, y, r, z0, z1, o = {}) => add({t: 'c', m, x, y, r, z0, z1, s: o.s ?? true, room: o.room ?? 'common', tag: o.tag, seg: o.seg});
+  if (lv === 18) {                               // roof deck: guests arrive by the two stairs (glass pavilions), lifts end at L17
+    for (const st of STAIRS) {
+      const x0 = st.x0 - PW / 2, x1 = st.x1 + PW / 2, y0 = COR, y1 = IY - .02, door = [st.x0 + .2, st.x0 + 1.25];
+      // fire escape stair housing (emergency exit only): solid stone walls, steel door, green exit sign
+      box('cladding', x0, x0 + .12, y0, y1, 0, 2.6); box('cladding', x1 - .12, x1, y0, y1, 0, 2.6); box('cladding', x0 + .12, x1 - .12, y1 - .2, y1, 0, 2.6);
+      box('cladding', x0 + .12, door[0] - .05, y0, y0 + .2, 0, 2.6); box('cladding', door[1] + .05, x1 - .12, y0, y0 + .2, 0, 2.6); box('cladding', door[0] - .05, door[1] + .05, y0, y0 + .2, 2.2, 2.6);
+      box('cladding', x0 - .1, x1 + .1, y0 - .1, y1, 2.6, 2.8, {s: false}); box('walkGreen', door[0] + .2, door[1] - .2, y0 - .02, y0, 2.3, 2.5, {s: false}); box('lampGlow', door[0] + .25, door[1] - .25, y0 - .03, y0 - .02, 2.36, 2.44, {s: false});
+      box('clear', door[0], door[1], y0 - .6, y0 + .6, .05, 1.9, {clear: true});
+      stairBlock(box, st, labels, lv);
+    }
+    { const a = SHAFTS[0].x0 - .15, b = SHAFTS[3].x1 + .15, c = SHAFTS[0].y0 - .15, d = SHAFTS[0].y1 + .15;   // capped shafts -> stone planter
+      box('marble', a, b, c, d, 0, .9, {tag: 'Planter / กระบะต้นไม้'}); box('leafDark', a + .15, b - .15, c + .15, d - .15, .9, 1.25, {s: false}); }
+    labels.forEach(l => { if (/^Stairs/.test(l[0])) l[0] = 'Fire Exit Stair / บันไดหนีไฟ  ▼L17'; });
+    { const xr = xb(3) - PW / 2, x0 = xr - SKYSTAIR.u1 - .1, x1 = xr - SKYSTAIR.u0 + .05, y0 = V0 + SKYSTAIR.v0, y1 = V0 + SKYSTAIR.v1 + .05;   // guest stair pavilion (open toward the pool deck)
+      box('glassShower', x0, x0 + .05, y0, y1, 0, 2.6); box('glassShower', x1 - .05, x1, y0, y1, 0, 2.6); box('glassShower', x0, x1, y1 - .05, y1, 0, 2.6);
+      for (const [x, y] of [[x0, y0], [x1, y0], [x0, y1], [x1, y1]]) box('bronze', x - .06, x + .06, y - .06, y + .06, 0, 2.7, {s: false});
+      box('bronze', x0 - .1, x1 + .1, y0 - .1, y1 + .1, 2.6, 2.7, {s: false}); box('glassShower', x0, x1, y0, y1, 2.7, 2.72, {s: false});
+      labels.push(['Guest Stair from L17 / บันไดขึ้นดาดฟ้า', (x0 + x1) / 2, y0 - .4, 2.4]); }
+    FAC[18](box, cyl, rooms, labels);
+    return {items, rooms, labels, type: 'facility', podium: false};
+  }
   if (!type) {                                   // podium / amenity levels: the vertical core still runs through
     const podium = lv === 'G' || lv === 2 || lv === 3;
     for (const x of [bx(3), bx(5), bx(12), bx(14)]) box('wall', x - PW / 2, x + PW / 2, V0, IY, 0, CEIL);
@@ -84,7 +108,6 @@ export function floorLayout(lv){
     corridorWall(box, 1, [...STAIRS.map(s => ({x0: s.x0 + .2, x1: s.x0 + 1.25, fire: true})), {x0: CORE.x0, x1: CORE.x1, lobby: true}], bx(3) - PW / 2, bx(14) + PW / 2);
     coreBlock(box, cyl, labels);
     for (const s of STAIRS) stairBlock(box, s, labels, lv);
-    if (lv === 18) labels.forEach(l => { if (/^Housekeeping/.test(l[0])) l[0] = 'Lift Machine Room / ห้องเครื่องลิฟต์'; if (/^MEP/.test(l[0])) l[0] = 'Roof Plant / ห้องเครื่องดาดฟ้า'; });
     if (FAC[lv]) FAC[lv](box, cyl, rooms, labels);
     return {items, rooms, labels, type: FAC[lv] ? 'facility' : null, podium};
   }
@@ -112,7 +135,7 @@ export function floorLayout(lv){
     const x0 = bx(k0) + (k0 < 0 ? 0 : PW / 2), x1 = bx(k1) - (k1 > 17 ? 0 : PW / 2);
     const num = (typeof lv === 'number' ? lv : 0) * 100 + rspec.length + i + 1;
     const room = buildRoom({lv, num, rt: Array.isArray(BACK[type]) ? BACK[type][i] : BACK[type], x0, x1, side: 1, flip: outer === 'L', outer}, box, cyl, doorsBack);
-    if (type === 'suite') { room.name = 'Executive Studio'; room.tier = 'Luxury'; } if (type === 'sky') { room.name = 'Sky Guest Room (connecting)'; room.tier = 'Ultra Luxury'; }
+    if (type === 'suite') { room.name = 'Executive Studio'; room.tier = 'Luxury'; } if (type === 'sky' && room.rt !== 'skyStair') { room.name = 'Sky Guest Room (connecting)'; room.tier = 'Ultra Luxury'; }
     rooms.push(room);
   });
   // ----- party walls
@@ -231,12 +254,12 @@ function buildRoom(r, box, cyl, doors){
   const [eu, ev] = res?.eye ?? EYE[r.rt]?.(W) ?? [W / 2, D - 1.6];
   B('clear', eu - .2, eu + .2, ev - .2, ev + .2, 1.1, 1.9, {clear: true});
   const xs = [X(0), X(W)];
-  return {id, num: r.num, rt: r.rt, name: ROOM_NAMES[r.rt], tier: ROOM_TIER[r.rt], side: r.side, x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(Y(0), Y(D)), y1: Math.max(Y(0), Y(D)), tags, area: res?.area ?? +(W * D).toFixed(1), view: r.side < 0 ? 'River view' : 'City view', outer: r.outer, eye: [X(eu), Y(ev)], side: r.side};
+  return {id, num: ROOM_TIER[r.rt] === 'Amenity' ? '' : r.num, rt: r.rt, name: ROOM_NAMES[r.rt], tier: ROOM_TIER[r.rt], side: r.side, x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(Y(0), Y(D)), y1: Math.max(Y(0), Y(D)), tags, area: res?.area ?? +(W * D).toFixed(1), view: r.side < 0 ? 'River view' : 'City view', outer: r.outer, eye: [X(eu), Y(ev)], side: r.side};
 }
 
 // standing viewpoint (local u, v) used for the window view - kept clear by the checker
 const EYE = {deluxe: W => [W - 1.25, D - 1.7], deluxeCorner: W => [3.05, D - 1.0], club: W => [W - 1.6, D - 1.9], clubPlus: W => [W - 1.6, D - 1.9], clubCorner: W => [3.3, D - 1.0],
-  juniorSuite: W => [5.6, D - 1.6], execSuite: W => [6.4, D - 1.3], presidential: W => [6.2, D - .6], poolHall: W => [13.9, 2.2], clubLounge: W => [13.9, D - 1.0],
+  juniorSuite: W => [5.6, D - 1.6], execSuite: W => [6.4, D - 1.3], presidential: W => [6.2, D - .6], poolHall: W => [13.9, .95], skyGarden: W => [14.0, 2.5], kidsClub: W => [4.0, 1.6], gamesRoom: W => [4.4, 1.5], skyStair: W => [3.8, 3.0], clubLounge: W => [13.9, D - 1.0],
   changingM: W => [2.2, 3.0], changingF: W => [2.2, 3.0], meeting: W => [2.9, 1.5], business: W => [2.2, 2.0]};
 // shared pieces
 function floorFinish(B, W, bath){ B('woodFloor', 0, W, 0, D, 0, .012, {s: false}); if (bath) B('marbleFloor', bath.u0, bath.u1, bath.v0, bath.v1, .012, .02, {s: false}); }
@@ -277,7 +300,7 @@ function coffee(ctx, u, v, r, h = .42, o = {}){ return ctx.Pc('coffeeRound', o.t
 function sideTable(ctx, u, v, r = .22, h = .55){ return ctx.Pc('sideTable', 'marbleBlack', u, v, 2 * r, 2 * r, 0, h, 'v+', {round: true}); }
 function sofa(ctx, u0, u1, v, depth, fab, backDir){ ctx.P('sofa', fab, u0, u1, v - depth / 2, v + depth / 2, 0, .85, backDir > 0 ? 'v+' : 'v-', {tag: 'Sofa / โซฟา', o: {accent: fab === 'velvetBlush' ? 'velvetCream' : 'velvetBlush'}}); }
 function sofaV(ctx, uBack, dir, v0, v1, fab){ ctx.P('sofa', fab, uBack, uBack + dir * .88, v0, v1, 0, .85, dir > 0 ? 'u-' : 'u+', {tag: 'Sofa / โซฟา'}); }
-function wardrobe(ctx, uWall, v0, v1, dir, label = 'Wardrobe / ตู้เสื้อผ้า'){ ctx.P('wardrobe', 'walnut', uWall, uWall + dir * .6, v0, v1, 0, 2.4, dir > 0 ? 'u-' : 'u+', {tag: label || null}); }
+function wardrobe(ctx, uWall, v0, v1, dir, label = 'Wardrobe / ตู้เสื้อผ้า', depth = .6){ ctx.P('wardrobe', 'walnut', uWall, uWall + dir * depth, v0, v1, 0, 2.4, dir > 0 ? 'u-' : 'u+', {tag: label || null}); }
 function bottles(ctx, u, v0, v1, z, n, dir = 1){ for (let i = 0; i < n; i++) ctx.Pc('bottle', i % 3 === 1 ? 'glassClear' : i % 3 === 2 ? 'wine' : 'bottleGreen', u, v0 + (i + .5) * (v1 - v0) / n, .075, .075, z, z + .3, 'v+', {round: true, s: false}); }
 function minibar(ctx, uWall, v0, v1, dir){
   const {B, P} = ctx, a = uWall, b = uWall + dir * .58;
@@ -308,21 +331,84 @@ function lamp(ctx, u, v){ ctx.Pc('floorLamp', 'gold', u, v, .4, .4, 0, 1.75, 'v+
 // bathroom block 0..bw x 0..bd with door in the wall u=bw, opening v in [d0,d1]
 function bathWalls(ctx, bw, bd, d0, d1){
   const {B} = ctx;
-  B('wall', bw, bw + .1, 0, d0, 0, CEIL); B('wall', bw, bw + .1, d1, bd + .1, 0, CEIL); B('wall', bw, bw + .1, d0, d1, 2.2, CEIL);
-  B('wall', 0, bw, bd, bd + .1, 0, CEIL);
+  B('wall', bw - .05, bw + .1, 0, d0, 0, CEIL); B('wall', bw - .05, bw + .1, d1, bd + .1, 0, CEIL); B('wall', bw - .05, bw + .1, d0, d1, 2.2, CEIL);
+  B('wall', 0, bw - .05, bd - .05, bd + .1, 0, CEIL);
   B('walnut', bw + .1, bw + .14, d0 - .85, d0 + .02, 0, 2.15, {door: true});         // sliding door parked on the passage side
   B('clear', bw + .15, bw + .95, d0 + .05, d1 - .05, .05, 1.9, {clear: true}); B('clear', bw - .75, bw - .02, d0 + .05, d1 - .05, .05, 1.9, {clear: true});
 }
 
 const TEMPLATES = {
+  skyGarden(ctx){
+    // library lounge (west) | indoor garden with green wall, trees and a stone water rill (centre) | tea & juice bar (east)
+    const {W, B, P, Pc} = ctx; floorFinish(B, W, null);
+    entryDoor(ctx, 13.4);
+    P('bookcase', 'walnut', .4, 8.2, 0, .45, 0, 2.4, 'v-', {tag: 'Library / ห้องสมุด'}); B('rug', .6, 8.4, 3.6, 6.0, .012, .02, {s: false});
+    P('tableRect', 'walnut', 2.4, 6.0, 1.6, 2.6, 0, .76, 'v+', {tag: 'Reading Table / โต๊ะอ่านหนังสือ', o: {setting: 'none'}});
+    for (const u of [2.9, 4.2, 5.5]) { diningChair(ctx, u, 1.15, [u, 2.1], 'leather'); diningChair(ctx, u, 3.05, [u, 2.1], 'leather'); }
+    for (const [a, b] of [[1.1, 2.4], [3.7, 5.0], [6.3, 7.6]]) { armchair(ctx, a, 4.7, 'velvetGreen', -1); armchair(ctx, b, 4.7, 'velvetGreen', -1); sideTable(ctx, (a + b) / 2, 4.85, .2, .55); }
+    lamp(ctx, .4, 4.2); lamp(ctx, 8.4, 4.2);
+    B('marble', 9.0, 13.2, 0, .32, 0, .3); B('marble', 14.6, 18.4, 0, .32, 0, .3); B('leafDark', 9.0, 13.2, .02, .16, .3, 2.5, {tag: 'Green Wall / สวนแนวตั้ง'}); B('leafDark', 14.6, 18.4, .02, .16, .3, 2.5);
+    B('floorStone', 9.0, 18.5, 1.6, 3.4, .012, .022, {s: false}); B('floorStone', 13.3, 14.5, 0, 1.6, .012, .022, {s: false});
+    B('marble', 10, 17.6, 4.4, 4.5, 0, .45); B('marble', 10, 17.6, 4.9, 5.0, 0, .45); B('marble', 10, 10.1, 4.5, 4.9, 0, .45); B('marble', 17.5, 17.6, 4.5, 4.9, 0, .45);
+    B('marbleBlack', 10.1, 17.5, 4.5, 4.9, 0, .1); B('water', 10.1, 17.5, 4.5, 4.9, .1, .4, {s: false, tag: 'Water Garden / สวนน้ำ'});
+    for (const u of [10.6, 13.8, 17.0]) Pc('plant', 'pot', u, 5.75, 1.2, 1.2, 0, 2.6, 'v+', {round: true, o: {potR: .45, potH: .6, type: 'tall', pot: 'marbleBlack'}});
+    for (const u of [10.0, 17.8]) Pc('plant', 'pot', u, 1.0, 1.1, 1.1, 0, 2.5, 'v+', {round: true, o: {potR: .4, potH: .6, type: 'tall', pot: 'marbleBlack'}});
+    for (const u of [11.5, 15.5]) P('cushionedBench', 'leather', u - .8, u + .8, 3.52, 3.98, 0, .45, 'v-', {tag: u < 12 ? 'Garden Bench / ม้านั่ง' : null});
+    B('walnut', 20, 24.5, .55, 1.2, 0, 1.05, {tag: 'Tea & Juice Bar / บาร์ชาและน้ำผลไม้'}); B('marbleBlack', 19.95, 24.55, .5, 1.25, 1.05, 1.1, {s: false});
+    B('walnut', 20, 24.5, 0, .3, 0, 1.0); P('barShelf', 'walnut', 20, 24.5, 0, .3, 1.1, 2.5, 'v-');
+    for (let i = 0; i < 4; i++) Pc('stool', 'leather', 20.6 + i * 1.1, 1.75, .4, .4, 0, .8, 'v+', {round: true});
+    sofa(ctx, 21.5, 23.7, 5.45, .85, 'velvetNavy', 1); coffee(ctx, 22.6, 4.3, .4); armchair(ctx, 20.6, 4.25, 'velvetBlush', 1, [22.6, 4.3]); armchair(ctx, 24.6, 4.25, 'velvetBlush', 1, [22.6, 4.3]);
+    Pc('tableRound', 'linen', 26.0, 2.4, .84, .84, 0, .76, 'v+', {round: true, o: {seats: 2, a0: Math.PI / 2, setting: 'coffee'}}); diningChair(ctx, 26.0, 1.55, [26.0, 2.4]); diningChair(ctx, 26.0, 3.25, [26.0, 2.4]);
+    plant(ctx, 25.6, 5.75, 1.2, .3, .2);
+    windowSide(ctx, 1.5, W - 1.5, false);
+    return {area: +(W * D).toFixed(0)};
+  },
+  kidsClub(ctx){
+    const {W, B, P, Pc} = ctx; floorFinish(B, W, null); B('velvetGreen', .3, W - .3, 1.6, D - 1.0, .012, .03, {s: false}); B('velvetBlush', .8, 3.0, 4.6, 5.4, .03, .05, {s: false});
+    entryDoor(ctx, 2.6);
+    P('bookcase', 'walnut', .1, 2.4, 0, .4, 0, 1.3, 'v-', {tag: 'Toys & Books / ชั้นของเล่น'});
+    P('tableRect', 'walnut', 1.2, 3.0, 2.7, 3.3, 0, .52, 'v+', {tag: 'Kids Table / โต๊ะเด็ก', o: {setting: 'none'}});
+    for (const u of [1.7, 2.5]) for (const v of [2.3, 3.7]) Pc('chair', u > 2 ? 'velvetNavy' : 'velvetBlush', u, v, .34, .34, 0, .62, backFrom(u, v, [u, 3.0]));
+    Pc('beanbag', 'velvetNavy', 4.0, 3.0, .8, .8, 0, .6, 'v+', {round: true, tag: 'Bean Bags / บีนแบ็ก'}); Pc('beanbag', 'velvetBlush', 4.2, 4.3, .8, .8, 0, .6, 'v+', {round: true});
+    P('tv', 'black', 0, .05, 4.4, 5.7, 1.0, 1.75, 'u-');
+    plant(ctx, .5, D - .7, 1.0, .3, .2);
+    windowSide(ctx, 0, W - 1.5, true);
+    return {area: +(W * D).toFixed(1)};
+  },
+  gamesRoom(ctx){
+    const {W, B, P} = ctx; floorFinish(B, W, null); B('rug', .5, W - .5, 1.5, D - .9, .012, .02, {s: false});
+    entryDoor(ctx, 2.6);
+    P('billiard', 'walnut', W / 2 - .75, W / 2 + .75, 2.3, 4.9, 0, .85, 'u+', {tag: 'Billiards / โต๊ะพูล'});
+    B('walnut', 0, .08, 2.2, 3.6, .9, 1.9, {tag: 'Cue Rack / ที่วางไม้คิว'}); for (let i = 0; i < 6; i++) B('walnut', .08, .1, 2.3 + i * .2, 2.33 + i * .2, .9, 2.4, {s: false});
+    sofa(ctx, .4, 2.4, D - .85, .85, 'leather', 1); P('tv', 'black', 0, .05, 5.0, 6.2, 1.25, 1.95, 'u-');
+    lamp(ctx, W - .49, .7);
+    windowSide(ctx, 0, W - 1.5, true);
+    return {area: +(W * D).toFixed(1)};
+  },
+  skyStair(ctx){
+    // guest stair hall: 20 risers up through the L18 slab to the sky deck
+    const {W, B, P} = ctx; B('floorStone', 0, W, 0, D, 0, .015, {s: false});
+    entryDoor(ctx, 3.6);
+    const {u0, u1, v0} = SKYSTAIR, n = 20, rise = FLOOR_H / n, tread = .28, vBot = v0 + n * tread;
+    for (let i = 0; i < n; i++) { const z = (i + 1) * rise, b = vBot - i * tread, a = b - tread; B('walnut', u0, u1, a, b, z - .06, z, {tag: i === 0 ? 'Stairs to Sky Deck / บันไดขึ้นดาดฟ้า' : null}); B('marble', u0, u1, b - .02, b, z - rise, z - .06, {s: false}); }
+    for (let i = 0; i < n; i += 3) { const z = (i + 1) * rise, v = vBot - i * tread - tread / 2; B('gold', u1 - .05, u1 - .02, v - .02, v + .02, z, Math.min(z + .95, 3.4), {s: false}); }
+    B('art', W - .02, W, 2.0, 3.6, 1.2, 2.1, {s: false}); B('gold', 2.4, 3.4, .02, .04, 2.0, 2.2, {s: false, tag: 'Sky Deck ▲ / ดาดฟ้า'});
+    plant(ctx, W - 1.9, D - .7, 1.2, .3, .2); lamp(ctx, W - .5, 1.6);
+    windowSide(ctx, 2.05, W - 1.5, true);
+    return {area: +(W * D).toFixed(1)};
+  },
   poolHall(ctx){
     const {W, B, C} = ctx; B('marbleFloor', 0, W, 0, D, 0, .015, {s: false});
     entryDoor(ctx, 13.4);
-    const p0 = 4.2, p1 = 23.3, v0 = 2.6, v1 = 5.75;            // lap pool basin (raised coping)
-    B('marble', p0 - .3, p1 + .3, v0 - .3, v0, 0, .45); B('marble', p0 - .3, p1 + .3, v1, v1 + .3, 0, .45); B('marble', p0 - .3, p0, v0, v1, 0, .45); B('marble', p1, p1 + .3, v0, v1, 0, .45);
-    B('water', p0, p1, v0, v1, 0, .38, {s: false, tag: 'Lap Pool 19 m / สระว่ายน้ำ'}); for (let i = 1; i < 4; i++) B('gold', p0, p1, v0 + i * (v1 - v0) / 4 - .02, v0 + i * (v1 - v0) / 4 + .02, .38, .385, {s: false});
+    const p0 = 4.2, p1 = 23.3, v0 = 2.6, v1 = 5.75, H = 1.25;    // lap pool: 1.2 m deep tank on the slab (glass side toward the loungers)
+    B('glassShower', p0 - .3, p1 + .3, v0 - .1, v0, 0, H - .07); B('marble', p0 - .3, p1 + .3, v0 - .3, v0, H - .07, H);
+    B('marble', p0 - .3, p1 + .3, v1, v1 + .3, 0, H); B('marble', p0 - .3, p0, v0, v1, 0, H); B('marble', p1, p1 + .3, v0, v1, 0, H);
+    B('poolTile', p0, p1, v0, v1, 0, .05, {s: false}); B('water', p0, p1, v0, v1, .05, H - .1, {s: false, tag: 'Lap Pool 19 m · 1.2 m deep / สระว่ายน้ำ'});
+    for (let i = 1; i < 4; i++) B('marbleBlack', p0 + 1, p1 - 1, v0 + i * (v1 - v0) / 4 - .1, v0 + i * (v1 - v0) / 4 + .1, .05, .06, {s: false});
+    for (let i = 0; i < 4; i++) B('lampGlow', p0 + 3 + i * 4.5 - .2, p0 + 3 + i * 4.5 + .2, v1 - .02, v1, .55, .65, {s: false});
+    for (let k = 0; k < 3; k++) B('marble', 13.0, 14.6, v0 - .3 - (k + 1) * .32, v0 - .3 - k * .32, 0, H - k * .4);
     for (let i = 0; i < 17; i++) { const u = p0 + .2 + i * 1.12; if (u > 12.7 && u < 15.0) continue; if (u + .72 > p1) break; ctx.P('lounger', 'linen', u, u + .72, .35, 2.0, 0, .75, 'v-', {tag: i === 1 ? 'Sun Loungers / เตียงอาบแดด' : null}); }
-    C('marble', 2.15, 3.6, 1.15, 0, .5); C('water', 2.15, 3.6, .95, .5, .52, {s: false, tag: 'Jacuzzi / อ่างน้ำวน'});
+    ctx.Pc('hotTub', 'marble', 2.15, 3.6, 2.3, 2.3, 0, .6, 'v+', {round: true, tag: 'Jacuzzi / อ่างน้ำวน'});
     B('walnut', 24.3, 26.0, .4, 1.1, 0, 1.0, {tag: 'Towel Station / จุดรับผ้าเช็ดตัว'}); for (let i = 0; i < 4; i++) B('towel', 24.4 + i * .4, 24.75 + i * .4, .5, 1.0, 1.0, 1.15, {s: false});
     for (const u of [.6, 3.4]) plant(ctx, u, 1.2, 1.4);
     ctx.P('daybed', 'linen', 24.6, 26.4, 2.4, 4.4, 0, .75, 'u+', {tag: 'Daybed / เตียงพักผ่อน'});
@@ -377,7 +463,7 @@ const TEMPLATES = {
     bathWalls(ctx, bw, bd, 1.65, 2.45);
     showerBox(ctx, 0, 1.2, 0, 1.08, 1.2, null); vanity(ctx, 1.3, bw - .05, 0, 1); wc(ctx, 0, 2.1, 1); towels(ctx, 1.0, 1.7, bd, -1);
     entryDoor(ctx, bw + .3);
-    wardrobe(ctx, W, .15, 1.75, -1); minibar(ctx, W, 1.8, 2.75, -1);
+    wardrobe(ctx, W, .15, 1.75, -1, undefined, .54); minibar(ctx, W, 1.8, 2.75, -1);
     B('walnut', 0, 1.9, bd + .1, bd + .4, 1.0, 1.03, {s: false, tag: null}); B('walnut', 0, 1.9, bd + .1, bd + .4, 1.45, 1.48, {s: false});   // open shelves on bath back wall
     acUnit(ctx, .9, bd + .1, 1);
     bedKing(ctx, 0, 3.75);
@@ -407,7 +493,7 @@ const TEMPLATES = {
   clubBase(ctx, plus){
     const {W, B, C} = ctx, bw = 2.8, bd = 3.0; floorFinish(B, W, {u0: 0, u1: bw, v0: 0, v1: bd});
     bathWalls(ctx, bw, bd, 1.55, 2.35);
-    showerBox(ctx, 0, 1.0, 0, 1.25, 1.0, null); vanity(ctx, 1.1, bw - .05, 0, 1, 2); wc(ctx, 0, 1.6, 1); bathtub(ctx, .05, 1.8, bd - .82, bd - .02, false); towels(ctx, 2.0, 2.7, bd, -1);
+    showerBox(ctx, 0, 1.0, 0, 1.25, 1.0, null); vanity(ctx, 1.1, bw - .05, 0, 1, 2); wc(ctx, 0, 1.6, 1); bathtub(ctx, .05, 1.8, bd - .86, bd - .06, false); towels(ctx, 2.0, 2.7, bd, -1);
     entryDoor(ctx, bw + .3);
     wardrobe(ctx, W, .15, 1.95, -1); minibar(ctx, W, 2.0, 2.95, -1);
     acUnit(ctx, 1.0, bd + .1, 1);
@@ -421,7 +507,7 @@ const TEMPLATES = {
   clubCorner(ctx){
     const {W, B, C} = ctx, bw = 2.8, bd = 3.0; floorFinish(B, W, {u0: 0, u1: bw, v0: 0, v1: bd});
     bathWalls(ctx, bw, bd, 1.55, 2.35);
-    showerBox(ctx, 0, 1.0, 0, 1.25, 1.0, null); vanity(ctx, 1.1, bw - .05, 0, 1, 2); wc(ctx, 0, 1.6, 1); bathtub(ctx, .05, 1.8, bd - .82, bd - .02, false); towels(ctx, 2.0, 2.7, bd, -1);
+    showerBox(ctx, 0, 1.0, 0, 1.25, 1.0, null); vanity(ctx, 1.1, bw - .05, 0, 1, 2); wc(ctx, 0, 1.6, 1); bathtub(ctx, .05, 1.8, bd - .86, bd - .06, false); towels(ctx, 2.0, 2.7, bd, -1);
     entryDoor(ctx, bw + .3);
     wardrobe(ctx, bw + 2.0, .15, 1.95, -1); minibar(ctx, bw + 2.0, 2.0, 2.95, -1);
     acUnit(ctx, 1.0, bd + .1, 1);
@@ -432,12 +518,12 @@ const TEMPLATES = {
     else if (lz >= .9) { armchair(ctx, bw + 2.1 + lz / 2, 2.3, 'velvetBlush', 1); sideTable(ctx, bw + 2.1 + lz / 2, 3.35, .22, .5); }
     else { const pu = bw + 2.1 + Math.min(lz / 2, .28); plant(ctx, pu, 2.4, 1.25, .22, .16); plant(ctx, pu, 3.3, .95, .22, .16); }
     deskChair(ctx, bw + 1.2, 4.3, [bw + 2.0, 4.3]);
-    windowSide(ctx, 0, W - 1.5, true); lamp(ctx, W - .6, .7);
+    windowSide(ctx, 0, W - 1.5, true); lamp(ctx, W - .49, .7);
   },
   juniorSuite(ctx){
     const {W, B, C} = ctx, bw = 2.8, bd = 3.0; floorFinish(B, W, {u0: 0, u1: bw, v0: 0, v1: bd});
     bathWalls(ctx, bw, bd, 1.55, 2.35);
-    showerBox(ctx, 0, 1.0, 0, 1.25, 1.0, null); vanity(ctx, 1.1, bw - .05, 0, 1, 2); wc(ctx, 0, 1.6, 1); bathtub(ctx, .05, 1.8, bd - .82, bd - .02, false); towels(ctx, 2.0, 2.7, bd, -1);
+    showerBox(ctx, 0, 1.0, 0, 1.25, 1.0, null); vanity(ctx, 1.1, bw - .05, 0, 1, 2); wc(ctx, 0, 1.6, 1); bathtub(ctx, .05, 1.8, bd - .86, bd - .06, false); towels(ctx, 2.0, 2.7, bd, -1);
     entryDoor(ctx, bw + .3);
     // walk-in wardrobe + minibar
     B('wall', bw + 1.4, bw + 1.5, 0, 2.2, 0, CEIL); wardrobe(ctx, W, .15, 2.15, -1, 'Walk-in Closet / ห้องแต่งตัว'); minibar(ctx, bw + 1.5, .2, 1.2, 1);
@@ -446,7 +532,7 @@ const TEMPLATES = {
     B('wall', 4.6, 4.7, 3.4, 6.2, 0, 1.3); tvConsole(ctx, 4.6, 3.95, 5.75, -1);
     sofaV(ctx, W - .05, -1, 3.4, 5.6, 'velvetNavy');
     coffee(ctx, W - 1.55, 4.5, .3); armchair(ctx, 5.3, D - .6, 'velvetBlush'); armchair(ctx, 6.2, D - .6, 'velvetBlush');
-    lamp(ctx, W - .3, D - .55);
+    lamp(ctx, W - .22, D - .55);
     windowSide(ctx, 0, W, false);
   },
   execSuite(ctx){
@@ -475,9 +561,9 @@ const TEMPLATES = {
     coffee(ctx, 6.05, 4.4, .32, .42, {tag: 'Coffee Table / โต๊ะกลาง'});
     B('rug', 5.6, 7.5, 3.0, 5.9, 0, .014, {s: false}); armchair(ctx, 6.1, 6.0, 'velvetBlush');
     // dining for 4 (round)
-    ctx.Pc('tableRound', 'linen', 8.75, 3.2, 1.1, 1.1, 0, .76, 'v+', {round: true, tag: 'Dining / โต๊ะอาหาร 4 ที่', o: {seats: 4}});
-    for (const [u, v] of [[8.75, 2.35], [8.75, 4.05], [7.9, 3.2], [9.6, 3.2]]) diningChair(ctx, u, v, [8.75, 3.2]);
-    ctx.Pc('pendant', 'lampShade', 8.75, 3.2, .5, .5, 1.95, 2.7, 'v+', {round: true, s: false});
+    ctx.Pc('tableRound', 'linen', 8.6, 3.2, 1.1, 1.1, 0, .76, 'v+', {round: true, tag: 'Dining / โต๊ะอาหาร 4 ที่', o: {seats: 4}});
+    for (const [u, v] of [[8.6, 2.35], [8.6, 4.05], [7.75, 3.2], [9.45, 3.2]]) diningChair(ctx, u, v, [8.6, 3.2]);
+    ctx.Pc('pendant', 'lampShade', 8.6, 3.2, .5, .5, 1.95, 2.7, 'v+', {round: true, s: false});
     lamp(ctx, 9.6, 2.0); plant(ctx, 5.75, 2.3, 1.2);
     windowSide(ctx, P + .1, W - 1.5, true);
     return {area: +(W * D - 1).toFixed(1)};
@@ -538,13 +624,13 @@ function spaceCtx(lv, box, cyl, rooms, spec){
   const C = (m, x, y, r, z0, z1, o = {}) => { const it = cyl(m, x, y, r, z0, z1, {...o, room: o.room ?? id}); if (o.tag) tags.push([o.tag, x, y, z1 + .3]); return it; };
   const {P, Pc} = makeP(u => u, v => v, 1, 1, id, tags, .3);
   const ctx = {B, C, P, Pc, W: spec.x1 - spec.x0, r: {outer: null}, doors: [], X: u => u, tags};
-  const room = {id, num: spec.num, rt: spec.rt || 'space', name: spec.name, tier: spec.tier || 'Facility', side: spec.side ?? -1, x0: spec.x0, x1: spec.x1, y0: spec.y0, y1: spec.y1, tags, area: +((spec.x1 - spec.x0) * (spec.y1 - spec.y0)).toFixed(0), view: spec.view || (spec.side > 0 ? 'Back of house' : 'River view'), outer: null, eye: spec.eye, side2: spec.side};
+  const room = {id, num: '', code: spec.num, rt: spec.rt || 'space', name: spec.name, tier: spec.tier || 'Facility', side: spec.side ?? -1, x0: spec.x0, x1: spec.x1, y0: spec.y0, y1: spec.y1, tags, area: +((spec.x1 - spec.x0) * (spec.y1 - spec.y0)).toFixed(0), view: spec.view || (spec.side > 0 ? 'Back of house' : 'River view'), outer: null, eye: spec.eye, side2: spec.side};
   B('clear', spec.eye[0] - .2, spec.eye[0] + .2, spec.eye[1] - .2, spec.eye[1] + .2, 1.1, 1.9, {clear: true});
   rooms.push(room); return ctx;
 }
 // partition wall along x (at y) or along y (at x) with optional door openings [a,b]
-function wallX(B, y, x0, x1, doors = [], m = 'wall', t = .12){ const o = {room: 'common'}; let x = x0; for (const [a, b] of doors.slice().sort((p, q) => p[0] - q[0])) { if (a > x + .01) B(m, x, a, y - t / 2, y + t / 2, 0, CEIL, o); B(m, a, b, y - t / 2, y + t / 2, 2.2, CEIL, o); x = b; } if (x1 > x + .01) B(m, x, x1, y - t / 2, y + t / 2, 0, CEIL, o); }
-function wallY(B, x, y0, y1, doors = [], m = 'wall', t = .12){ const o = {room: 'common'}; let y = y0; for (const [a, b] of doors.slice().sort((p, q) => p[0] - q[0])) { if (a > y + .01) B(m, x - t / 2, x + t / 2, y, a, 0, CEIL, o); B(m, x - t / 2, x + t / 2, a, b, 2.2, CEIL, o); y = b; } if (y1 > y + .01) B(m, x - t / 2, x + t / 2, y, y1, 0, CEIL, o); }
+function wallX(B, y, x0, x1, doors = [], m = 'wall', t = .16){ const o = {room: 'common'}; let x = x0; for (const [a, b] of doors.slice().sort((p, q) => p[0] - q[0])) { if (a > x + .01) B(m, x, a, y - t / 2, y + t / 2, 0, CEIL, o); B(m, a, b, y - t / 2, y + t / 2, 2.2, CEIL, o); x = b; } if (x1 > x + .01) B(m, x, x1, y - t / 2, y + t / 2, 0, CEIL, o); }
+function wallY(B, x, y0, y1, doors = [], m = 'wall', t = .16){ const o = {room: 'common'}; let y = y0; for (const [a, b] of doors.slice().sort((p, q) => p[0] - q[0])) { if (a > y + .01) B(m, x - t / 2, x + t / 2, y, a, 0, CEIL, o); B(m, x - t / 2, x + t / 2, a, b, 2.2, CEIL, o); y = b; } if (y1 > y + .01) B(m, x - t / 2, x + t / 2, y, y1, 0, CEIL, o); }
 function glassX(B, y, x0, x1, door){ B('glassShower', x0, door ? door[0] : x1, y - .02, y + .02, 0, 2.6); if (door) B('glassShower', door[1], x1, y - .02, y + .02, 0, 2.6); B('gold', x0, x1, y - .04, y + .04, 2.6, 2.66, {s: false}); }
 function roundTable(ctx, x, y, r, seats, chairMat = 'velvetCream', a0 = 0){ ctx.Pc('tableRound', 'linen', x, y, 2 * r, 2 * r, 0, .76, 'v+', {round: true, o: {seats, a0}}); for (let i = 0; i < seats; i++) { const a = a0 + i * 2 * Math.PI / seats; diningChair(ctx, x + Math.cos(a) * (r + .42), y + Math.sin(a) * (r + .42), [x, y], chairMat); } }
 function stools(ctx, pts, h = .8){ for (const [x, y] of pts) ctx.Pc('stool', 'leather', x, y, .4, .4, 0, h, 'v+', {round: true}); }
@@ -553,12 +639,45 @@ function restroomBlock(ctx, x0, x1, y0, y1, doorY){
   B('marbleFloor', x0, x1, y0, y1, 0, .015, {s: false});
   wallX(B, doorY, x0, x1, [[x0 + .5, x0 + 1.4], [xm + .5, xm + 1.4]]); wallY(B, xm, doorY + .06, y1 - .06); wallX(B, y1, x0, x1);
   for (const [a, b, lab] of [[x0, xm, 'Restroom (Men) / ห้องน้ำชาย'], [xm, x1, 'Restroom (Women) / ห้องน้ำหญิง']]) {
-    vanity(ctx, a + 1.9, b - .3, doorY + .06, 1, 2);
-    for (let i = 0; i < 2; i++) { const ys = y1 - 1.45 - i * 1.5; B('walnut', a + .06, b - .06 > a + 1.6 ? a + 1.6 : b - .06, ys - .03, ys + .03, 0, 2.1); wc(ctx, a + .06, ys + .72, 1); }
+    vanity(ctx, a + 1.9, b - .3, doorY + .09, 1, 2);
+    for (let i = 0; i < 2; i++) { const ys = y1 - 1.45 - i * 1.5; B('walnut', a + .09, b - .09 > a + 1.6 ? a + 1.6 : b - .09, ys - .03, ys + .03, 0, 2.1); wc(ctx, a + .09, ys + .72, 1); }
     B('art', a + 1.0, a + 1.8, doorY + .07, doorY + .08, 1.4, 2.0, {s: false, tag: lab});
   }
 }
 const FAC = {
+  9(box, cyl, rooms, labels){
+    // open-plan recreation lounge: billiards, board games, table tennis, foosball, drinks bar, video-game lounge, river-view seating
+    const R = spaceCtx(9, box, cyl, rooms, {num: 'R9', name: 'Recreation Lounge', x0: -IX, x1: IX, y0: -IY, y1: IY, side: -1, eye: [0, -5.6], tier: 'Recreation', view: 'River view'});
+    const {B, C, P, Pc} = R, xl = xb(3) - PW / 2, xr = xb(14) + PW / 2;
+    B('woodFloor', -IX, IX, -IY, COR, 0, .012, {s: false}); B('woodFloor', -IX, xl, COR, IY, 0, .012, {s: false}); B('woodFloor', xr, IX, COR, IY, 0, .012, {s: false});
+    // billiards (west, river side)
+    B('rug', -12.6, -2.4, -7.0, -2.2, .012, .02, {s: false});
+    for (const x of [-9.5, -4.6]) P('billiard', 'walnut', x - 1.3, x + 1.3, -5.25, -3.75, 0, .85, 'y+', {tag: x < -6 ? 'Billiards / โต๊ะพูล' : null});
+    for (const x of [-9.5, -4.6]) Pc('pendant', 'lampShade', x, -4.5, .9, .9, 1.9, 2.7, 'y+', {round: true, s: false});
+    B('walnut', -13.75, -13.67, -2.4, -.6, .9, 1.9, {tag: 'Cue Rack / ที่วางไม้คิว'}); for (let i = 0; i < 6; i++) B('walnut', -13.67, -13.65, -2.3 + i * .28, -2.27 + i * .28, .9, 2.4, {s: false});
+    C('black', -13.71, .8, .3, 1.5, 1.52, {s: false}); C('red', -13.7, .8, .22, 1.52, 1.53, {s: false}); B('art', -13.75, -13.72, .3, 1.3, 1.25, 1.27, {s: false, tag: 'Darts / ปาเป้า'});
+    // board games (centre-east, river side) + games library on the east end wall
+    for (const x of [2.8, 5.6]) for (const y of [-5.2, -2.4]) { Pc('tableRound', 'throw', x, y, 1.0, 1.0, 0, .76, 'y+', {round: true, o: {seats: 4, game: true, cloth: 'throw', drop: .1}}); for (let k = 0; k < 4; k++) { const a = k * Math.PI / 2; diningChair(R, x + Math.cos(a) * .92, y + Math.sin(a) * .92, [x, y], 'leather'); } }
+    labels.push(['Board Games / บอร์ดเกม', 4.2, -3.8, 1.4]);
+    P('bookcase', 'walnut', 13.3, 13.75, -2.8, 2.6, 0, 2.2, 'x+', {tag: 'Games Library / ชั้นบอร์ดเกม'});
+    // table tennis + foosball (east, river side)
+    P('pingpong', 'courtBlue', 9.5, 12.24, -5.5, -4.0, 0, .9, 'y+', {tag: 'Table Tennis / ปิงปอง'});
+    P('foosball', 'walnut', 10.0, 11.4, -2.4, -1.64, 0, .95, 'y+', {tag: 'Foosball / โต๊ะฟุตบอล'});
+    // window lounge (centre)
+    B('rug', -1.9, 1.9, -7.2, -3.6, .012, .02, {s: false});
+    sofa(R, -1.1, 1.1, -3.98, .85, 'velvetGreen', 1); coffee(R, 0, -5.3, .45); armchair(R, -1.55, -6.3, 'velvetBlush', -1, [0, -5.3]); armchair(R, 1.55, -6.3, 'velvetBlush', -1, [0, -5.3]);
+    // drinks bar (west back corner)
+    B('walnut', -12.4, -9.2, 3.4, 4.1, 0, 1.05, {tag: 'Drinks Bar / บาร์เครื่องดื่ม'}); B('marbleBlack', -12.45, -9.15, 3.35, 4.15, 1.05, 1.1, {s: false});
+    B('walnut', -12.2, -9.2, 7.25, 7.55, 0, 1.0); P('barShelf', 'walnut', -12.2, -9.2, 7.25, 7.55, 1.0, 2.4, 'y+');
+    for (let i = 0; i < 4; i++) Pc('stool', 'leather', -12.0 + i * .9, 2.75, .4, .4, 0, .8, 'y+', {round: true});
+    for (const [x, y] of [[-10.6, 1.6], [-12.6, 1.6]]) Pc('cocktailTable', 'marbleBlack', x, y, .6, .6, 0, 1.05, 'y+', {round: true});
+    // video-game lounge (east back corner)
+    B('walnut', xr, xr + .06, 3.0, 5.6, .5, 2.4); P('tv', 'black', xr + .06, xr + .11, 3.4, 5.2, 1.0, 2.0, 'x-', {tag: 'Game Consoles / เกมคอนโซล'});
+    P('sofa', 'velvetNavy', 11.65, 12.55, 2.7, 5.9, 0, .85, 'x+'); coffee(R, 10.3, 4.3, .45); Pc('beanbag', 'velvetBlush', 9.3, 2.4, .8, .8, 0, .6, 'y+', {round: true}); Pc('beanbag', 'velvetGreen', 9.3, 6.2, .8, .8, 0, .6, 'y+', {round: true});
+    // plants + floor lamps
+    for (const [x, y] of [[-12.6, -6.6], [12.6, -6.6], [-6.9, -.4], [7.1, -.4]]) plant(R, x, y, 1.4, .32, .2);
+    lamp(R, -7.2, -6.6); lamp(R, 7.4, -6.6);
+  },
   G(box, cyl, rooms, labels){
     // ---- grand lobby (front, full width)
     const L = spaceCtx('G', box, cyl, rooms, {num: 'G01', name: 'Grand Lobby & Reception', x0: -PX, x1: PX, y0: -PY, y1: 1.1, side: -1, eye: [0, -9.5], tier: 'Arrival'});
@@ -604,43 +723,93 @@ const FAC = {
     for (let i = 0; i < 8; i++) S.B('steel', -7.6 + i * 1.9, -6.2 + i * 1.9, PY - .55, PY - .05, 0, 1.9, {tag: i === 0 ? 'Staff Lockers / ล็อกเกอร์พนักงาน' : null});
   },
   2(box, cyl, rooms, labels){
-    const D0 = spaceCtx(2, box, cyl, rooms, {num: '201', name: 'All-Day Dining', x0: -PX, x1: 10.0, y0: -PY, y1: 1.1, side: -1, eye: [-6.0, -6.8], tier: 'Dining'});
-    const {B, C} = D0;
-    B('woodFloor', -PX, 10.0, -PY, 1.1, 0, .015, {s: false}); B('rug', -22.8, 8.8, -12.8, -6.6, .015, .025, {s: false});
-    for (const x of [-20.8, -16.6, -12.4, -8.2, -0.2, 4.0, 8.0]) for (const y of [-11.6, -8.0]) roundTable(D0, x, y, .55, 4, 'velvetGreen');
-    // buffet islands + dessert
-    B('walnut', -4.6, 2.6, -5.0, -3.9, 0, .92, {tag: 'Buffet Island / บุฟเฟต์'}); B('marble', -4.65, 2.65, -5.05, -3.85, .92, .96, {s: false}); for (let i = 0; i < 7; i++) D0.Pc('chafing', 'steel', -4.1 + i * 1.0, -4.45, .52, .52, .96, 1.14, 'v+', {round: true, o: {food: ['bread', 'red', 'leaf', 'bread', 'linen', 'blossom', 'bread'][i]}}); B('glassShower', -4.6, 2.6, -4.47, -4.43, 1.14, 1.55);
-    B('walnut', -12.6, -7.8, -5.0, -3.9, 0, .92, {tag: 'Dessert & Patisserie / ของหวาน'}); B('marble', -12.65, -7.75, -5.05, -3.85, .92, .96, {s: false}); for (let i = 0; i < 5; i++) { if (i % 2) D0.Pc('pastryTray', 'marble', -12.1 + i * 1.0, -4.45, .55, .42, .96, 1.04, 'v+'); else D0.Pc('cakeStand', 'gold', -12.1 + i * 1.0, -4.45, .44, .44, .96, 1.42, 'v+', {round: true}); }
-    // show-kitchen counter along the back
-    B('steel', -22.5, -9.0, -1.6, -.8, 0, .92, {tag: 'Live Cooking Stations / ครัวเปิด'}); B('marbleBlack', -22.55, -8.95, -1.65, -.75, .92, .96, {s: false}); for (let i = 0; i < 4; i++) { const x = -21.0 + i * 3.4; D0.Pc('person', 'towel', x, -.2, .64, .64, 0, 1.9, 'v+', {round: true, o: {hat: true, bottom: 'chef', apron: 'chef'}}); }
-    for (const x of [-22.6, 9.0]) plant(D0, x, -12.6, 1.6);
+    const D0 = spaceCtx(2, box, cyl, rooms, {num: '201', name: 'Buffet Restaurant', x0: -PX, x1: -.15, y0: -PY, y1: 1.1, side: -1, eye: [-8.0, -5.6], tier: 'Dining'});
+    const {B, C, P, Pc} = D0, pend = (x, y, w = .6) => Pc('pendant', 'lampShade', x, y, w, w, 1.9, 2.7, 'v+', {round: true, s: false});
+    B('woodFloor', -PX, -.15, -PY, 1.1, 0, .015, {s: false});
+    // arrival: host stand facing the lift lobby
+    P('hostStand', 'walnut', -2.6, -1.8, -1.1, -.6, 0, 1.1, 'v-', {tag: 'Host / พนักงานต้อนรับ'});
+    // live cooking line along the kitchen wall: equipment + hood behind the chefs, serving counter with a glass guard in front
+    for (const [x0, x1] of [[-22.6, -19.6], [-19.5, -16.5], [-16.4, -13.4]]) P('kitchenRange', 'steel', x0, x1, .38, 1.08, 0, .92, 'v+');
+    B('steel', -22.8, -13.2, .35, 1.2, 2.0, 2.55, {s: false}); B('lampGlow', -22.6, -13.4, .4, .5, 1.96, 2.0, {s: false});
+    for (const x of [-21.0, -18.0, -15.0]) Pc('person', 'towel', x, -.3, .64, .64, 0, 1.9, 'v+', {round: true, o: {hat: true, bottom: 'chef', apron: 'chef'}});
+    B('walnut', -22.6, -13.4, -1.6, -.95, 0, .95, {tag: 'Live Cooking / ครัวเปิด'}); B('marbleBlack', -22.65, -13.35, -1.65, -.9, .95, 1.0, {s: false}); B('glassShower', -22.6, -13.4, -1.32, -1.28, 1.0, 1.42, {s: false});
+    for (let i = 0; i < 8; i++) Pc('saladBowl', 'ceramic', -22.1 + i * 1.15, -1.12, .34, .34, 1.0, 1.1, 'v+', {round: true, s: false, o: {seed: i, food: ['bread', 'red', 'leaf', 'bread'][i % 4]}});
+    // three buffet islands (served from both sides), plates at the start of each
+    const island = (x0, x1, tag) => { B('walnut', x0, x1, -4.9, -3.7, 0, .9, {tag}); B('marble', x0 - .05, x1 + .05, -4.95, -3.65, .9, .94, {s: false}); B('gold', x0, x1, -4.97, -4.93, .1, .9, {s: false}); B('gold', x0, x1, -3.67, -3.63, .1, .9, {s: false}); Pc('plateStack', 'ceramic', x0 + .2, -4.3, .28, .28, .94, 1.2, 'v+', {round: true, s: false}); };
+    island(-22.4, -18.4, 'Cold & Seafood / อาหารทะเล-สลัด'); P('iceDisplay', 'marble', -21.95, -19.95, -4.75, -3.85, .94, 1.1, 'v+', {s: false});
+    for (const x of [-19.55, -18.85]) for (const y of [-4.55, -4.05]) Pc('saladBowl', 'ceramic', x, y, .4, .4, .94, 1.06, 'v+', {round: true, s: false, o: {seed: Math.round(x * 10 + y)}});
+    B('glassShower', -22.4, -18.4, -4.32, -4.28, 1.12, 1.5, {s: false});
+    island(-17.4, -13.4, 'Hot Mains / อาหารร้อน'); for (let i = 0; i < 4; i++) Pc('chafing', 'steel', -16.7 + i * .95, -4.3, .52, .52, .94, 1.12, 'v+', {round: true, s: false, o: {food: ['bread', 'red', 'leaf', 'linen'][i]}}); B('glassShower', -17.4, -13.4, -4.32, -4.28, 1.12, 1.5, {s: false});
+    island(-12.3, -8.3, 'Desserts / ของหวาน'); for (let i = 0; i < 4; i++) { const x = -11.6 + i * .95; if (i % 2) Pc('pastryTray', 'marble', x, -4.3, .55, .42, .94, 1.02, 'v+', {s: false}); else Pc('cakeStand', 'gold', x, -4.3, .44, .44, .94, 1.4, 'v+', {round: true, s: false}); }
+    for (const x of [-20.4, -15.4, -10.3]) pend(x, -4.3, .5);
+    // juice & coffee station
+    B('walnut', -7.6, -4.8, -1.6, -.95, 0, .95, {tag: 'Juice & Coffee / น้ำผลไม้-กาแฟ'}); B('marble', -7.65, -4.75, -1.65, -.9, .95, .99, {s: false});
+    P('juiceDispenser', 'chrome', -7.4, -6.4, -1.45, -1.1, .99, 1.45, 'v+', {s: false}); B('steel', -6.1, -5.5, -1.5, -1.05, .99, 1.45, {s: false}); for (let i = 0; i < 4; i++) C('ceramic', -5.3 + (i % 2) * .15, -1.4 + Math.floor(i / 2) * .2, .045, .99, 1.07, {s: false});
+    // window booths with banquettes along the river glass
+    for (const c of [-21.4, -18.2, -15.0, -11.8]) { sofa(D0, c - 1.0, c + 1.0, -12.75, .85, 'velvetGreen', -1); P('tableRect', 'walnut', c - .7, c + .7, -12.2, -11.4, 0, .76, 'v+', {o: {perSide: 2}}); diningChair(D0, c - .4, -10.95, [c - .4, -11.8]); diningChair(D0, c + .4, -10.95, [c + .4, -11.8]); pend(c, -11.8); }
+    // centre 4-tops, family 6-tops and 2-tops
+    for (const x of [-21.0, -17.4, -13.8, -10.2]) { roundTable(D0, x, -7.6, .55, 4, 'velvetCream'); pend(x, -7.6); }
+    for (const x of [-6.0, -2.6]) for (const y of [-10.6, -7.0]) { roundTable(D0, x, y, .55, 4, 'velvetCream'); pend(x, y); }
+    B('rug', -22.8, -9.0, -9.2, -6.0, .015, .025, {s: false}); B('rug', -7.6, -1.0, -12.0, -5.6, .015, .025, {s: false});
+    for (const [x, y] of [[-23.2, -9.5], [-.8, -12.9], [-23.2, -2.6]]) plant(D0, x, y, 1.6);
+    // ---- Thai restaurant (a la carte), split off the east side of the floor
+    const TH = spaceCtx(2, box, cyl, rooms, {num: '208', name: 'Thai Restaurant', x0: .15, x1: 10.0, y0: -PY, y1: 1.1, side: -1, eye: [5.0, -3.0], tier: 'Dining'});
+    wallY(TH.B, 0, -PY, 1.1);
+    TH.B('deck', .15, 10.0, -PY, 1.1, 0, .015, {s: false}); TH.B('rug', .8, 9.6, -12.8, -6.6, .015, .025, {s: false});
+    TH.P('hostStand', 'walnut', 1.8, 2.6, -1.1, -.6, 0, 1.1, 'v-', {tag: 'Thai Restaurant / ห้องอาหารไทย'});
+    for (const x of [2.0, 5.2, 8.4]) for (const y of [-11.6, -8.4]) { TH.P('tableRect', 'walnut', x - .45, x + .45, y - .45, y + .45, 0, .76, 'v+', {o: {perSide: 1, ends: true, runner: 'gold'}}); for (const [dx, dy] of [[-.8, 0], [.8, 0], [0, -.8], [0, .8]]) diningChair(TH, x + dx, y + dy, [x, y], 'throw'); TH.Pc('pendant', 'lampShade', x, y, .55, .55, 1.9, 2.7, 'v+', {round: true, s: false}); }
+    // lotus pond with a stone rim + Thai gold artwork on the partition
+    TH.B('marble', 3.0, 7.4, -5.7, -5.55, 0, .5); TH.B('marble', 3.0, 7.4, -4.25, -4.1, 0, .5); TH.B('marble', 3.0, 3.15, -5.55, -4.25, 0, .5); TH.B('marble', 7.25, 7.4, -5.55, -4.25, 0, .5);
+    TH.B('marbleBlack', 3.15, 7.25, -5.55, -4.25, 0, .1); TH.B('water', 3.15, 7.25, -5.55, -4.25, .1, .42, {s: false, tag: 'Lotus Pond / สระบัว'});
+    for (let i = 0; i < 6; i++) { TH.C('leaf', 3.6 + i * .7, -4.9 + (i % 2) * .3, .14, .42, .43, {s: false}); TH.C('blossom', 3.6 + i * .7, -4.9 + (i % 2) * .3, .05, .43, .5, {s: false}); }
+    TH.B('gold', .16, .2, -10.6, -6.2, 1.0, 2.5, {s: false, tag: 'Thai Art / ภาพจิตรกรรมไทย'}); TH.B('art', .2, .22, -10.4, -6.4, 1.1, 2.4, {s: false});
+    for (const [x, y] of [[.7, -12.8], [9.4, -12.8], [9.4, -2.0], [.7, -2.4]]) plant(TH, x, y, 1.6);
     // private dining + wine bar (right)
     const P1 = spaceCtx(2, box, cyl, rooms, {num: '202', name: 'Private Dining Room (10)', x0: 10.1, x1: 16.9, y0: -PY, y1: -5.2, side: -1, eye: [13.5, -6.4], tier: 'Dining'});
     wallY(P1.B, 10.06, -PY, -5.26); wallX(P1.B, -5.2, 10.0, PX, [[12.6, 13.6], [19.6, 20.6]]); wallY(P1.B, 16.96, -PY, -5.26);
     P1.P('tableRect', 'walnut', 11.6, 15.4, -10.4, -8.9, 0, .76, 'v+', {tag: 'Table for 10 / โต๊ะ 10 ที่', o: {perSide: 4, ends: true}}); P1.Pc('chandelier', 'gold', 13.5, -9.65, 1.3, 1.3, 1.95, 2.7, 'v+', {round: true, s: false});
     for (let i = 0; i < 4; i++) { diningChair(P1, 12.05 + i * .95, -11.2, [12.05 + i * .95, -9.65]); diningChair(P1, 12.05 + i * .95, -8.1, [12.05 + i * .95, -9.65]); } diningChair(P1, 11.05, -9.65, [13.5, -9.65]); diningChair(P1, 15.95, -9.65, [13.5, -9.65]);
-    P1.B('art', 10.12, 10.14, -11.5, -7.5, 1.2, 2.3, {s: false});
+    P1.B('art', 10.12, 10.14, -11.5, -7.5, 1.2, 2.3, {s: false}); P1.B('walnut', 16.25, 16.8, -12.6, -10.9, 0, .9, {tag: 'Sideboard / ตู้เสิร์ฟ'}); P1.Pc('flowers', 'gold', 16.52, -11.75, .35, .35, .9, 1.5, 'v+', {round: true, s: false, o: {vase: 'gold'}});
     const P2 = spaceCtx(2, box, cyl, rooms, {num: '203', name: 'Chef’s Table (8)', x0: 17.0, x1: PX, y0: -PY, y1: -5.2, side: -1, eye: [20.4, -6.4], tier: 'Dining'});
-    roundTable(P2, 20.4, -9.6, 1.0, 8, 'velvetNavy'); P2.Pc('chandelier', 'gold', 20.4, -9.6, 1.2, 1.2, 1.95, 2.7, 'v+', {round: true, s: false}); P2.tags.push(["Chef's Table / เชฟส์เทเบิล", 20.4, -9.6, 1.1]);
+    roundTable(P2, 20.4, -9.6, 1.0, 8, 'velvetNavy'); P2.B('walnut', 17.2, 17.75, -12.6, -10.9, 0, .9); P2.Pc('flowers', 'gold', 17.47, -11.75, .35, .35, .9, 1.5, 'v+', {round: true, s: false, o: {vase: 'gold'}}); P2.Pc('chandelier', 'gold', 20.4, -9.6, 1.2, 1.2, 1.95, 2.7, 'v+', {round: true, s: false}); P2.tags.push(["Chef's Table / เชฟส์เทเบิล", 20.4, -9.6, 1.1]);
     const W2 = spaceCtx(2, box, cyl, rooms, {num: '204', name: 'Wine Bar & Cellar', x0: 10.1, x1: PX, y0: -5.1, y1: 1.1, side: -1, eye: [14.0, -2.0], tier: 'Dining'});
     W2.P('wineWall', 'walnut', 18.0, 23.6, .1, .7, 0, 2.5, 'v+', {tag: 'Wine Wall / ผนังไวน์'});
+    W2.B('walnut', 12.0, 16.5, .6, .95, 0, 1.0); W2.P('barShelf', 'walnut', 12.0, 16.5, .6, .95, 1.0, 2.4, 'v+'); W2.Pc('person', 'linen', 14.2, -.4, .64, .64, 0, 1.8, 'v+', {round: true, o: {top: 'linen', bottom: 'black', apron: 'black'}});
+    coffee(W2, 20.6, -3.3, .45); armchair(W2, 19.1, -3.3, 'velvetGreen', 1, [20.6, -3.3]); armchair(W2, 22.1, -3.3, 'velvetGreen', 1, [20.6, -3.3]);
     W2.B('walnut', 12.0, 16.5, -2.2, -1.5, 0, 1.05, {tag: 'Bar / บาร์'}); W2.B('marbleBlack', 11.95, 16.55, -2.25, -1.45, 1.05, 1.1, {s: false}); stools(W2, Array.from({length: 5}, (_, i) => [12.4 + i * 1.0, -2.9]));
     // kitchen + restrooms behind
-    const K = spaceCtx(2, box, cyl, rooms, {num: '205', name: 'Main Kitchen', x0: -PX, x1: -8.3, y0: 1.3, y1: PY, side: 1, eye: [-16.0, 6.5], tier: 'Back of House'});
+    const K = spaceCtx(2, box, cyl, rooms, {num: '205', name: 'Main Kitchen', x0: -PX, x1: -8.3, y0: 1.3, y1: PY, side: 1, eye: [-12.6, 4.2], tier: 'Back of House'});
     wallX(K.B, 1.3, -PX, -8.2, [[-12.0, -10.8]]);
-    K.B('steel', -20.5, -12.5, 4.2, 5.4, 0, .92, {tag: 'Cooking Line / เตาครัว'}); K.B('black', -20.5, -12.5, 4.2, 5.4, .92, .97, {s: false}); K.B('steel', -20.5, -12.5, 4.5, 5.1, 2.0, 2.5, {s: false});
-    K.B('steel', -20.5, -12.5, 7.4, 8.2, 0, .9, {tag: 'Prep Tables / โต๊ะเตรียมอาหาร'}); K.B('steel', -23.6, -21.2, 9.6, PY - .05, 0, 2.4, {tag: 'Walk-in Cold Room / ห้องเย็น'}); K.B('steel', -14.0, -9.0, PY - .8, PY - .05, 0, .95, {tag: 'Dishwash / ล้างจาน'});
+    K.B('floorService', -PX, -8.3, 1.36, PY, 0, .015, {s: false});
+    K.B('steel', -16.2, -12.6, 1.75, 2.45, 0, .9, {tag: 'Hot Pass / จุดส่งอาหาร'}); K.B('steel', -16.2, -12.6, 2.0, 2.2, 1.55, 1.6, {s: false}); K.B('lampGlow', -16.1, -12.7, 2.0, 2.2, 1.52, 1.55, {s: false}); for (let i = 0; i < 5; i++) K.C('ceramic', -15.8 + i * .7, 2.1, .13, .9, .92, {s: false});
+    K.P('sinkUnit', 'steel', -10.7, -8.5, 1.65, 2.35, 0, .9, 'v-', {tag: 'Dishwash / ล้างจาน'}); K.B('steel', -10.7, -9.6, 2.6, 3.3, 0, 1.5); K.B('steel', -10.75, -9.55, 2.55, 3.35, 1.9, 2.3, {s: false}); K.P('wireShelf', 'chrome', -9.5, -8.5, 2.6, 3.3, 0, 1.8, 'u+');
+    for (const [x0, x1] of [[-21.6, -19.9], [-19.8, -18.1], [-18.0, -16.3], [-16.2, -14.5]]) { K.P('kitchenRange', 'steel', x0, x1, 4.8, 5.8, 0, .92, 'v+'); K.P('kitchenRange', 'steel', x0, x1, 5.85, 6.85, 0, .92, 'v-'); K.P('prepTable', 'steel', x0, x1, 7.7, 8.5, 0, .9, 'v+'); }
+    K.tags.push(['Cooking Suite / เตาประกอบอาหาร', -18, 5.8, 1.6], ['Prep Tables / โต๊ะเตรียมอาหาร', -18, 8.1, 1.4]);
+    K.B('steel', -21.8, -14.3, 4.7, 6.95, 2.0, 2.6, {s: false});
+    for (const [x, y] of [[-20.6, 4.0], [-17.0, 4.0], [-19.0, 7.25]]) K.Pc('person', 'towel', x, y, .64, .64, 0, 1.9, y < 5 ? 'v-' : 'v+', {round: true, o: {hat: true, bottom: 'chef', apron: 'chef'}});
+    K.P('combiOven', 'steel', -9.4, -8.5, 5.5, 6.6, 0, 1.9, 'u+', {tag: 'Combi Ovens / เตาอบ'}); K.P('combiOven', 'steel', -9.4, -8.5, 6.7, 7.8, 0, 1.9, 'u+');
+    K.B('steel', -23.6, -21.0, 10.2, PY - .05, 0, 2.4, {tag: 'Walk-in Cold Room / ห้องเย็น'}); K.B('chrome', -21.02, -20.98, 11.0, 12.6, .1, 2.1, {s: false});
+    for (let i = 0; i < 2; i++) K.P('wireShelf', 'chrome', -20.5 + i * 2.1, -18.5 + i * 2.1, 12.75, 13.3, 0, 2.0, 'v+', {tag: i ? null : 'Dry Store / คลังวัตถุดิบ', o: {seed: i}});
+    K.P('sinkUnit', 'steel', -15.5, -13.0, 12.6, 13.3, 0, .9, 'v+', {tag: 'Pot Wash / ล้างหม้อ'});
     const R2 = spaceCtx(2, box, cyl, rooms, {num: '206', name: 'Restrooms', x0: 8.3, x1: 16.0, y0: 1.3, y1: 8.0, side: 1, eye: [10.2, 2.6], tier: 'Guest Service'});
     wallX(R2.B, 1.3, 16.12, PX, [[18.0, 19.0]]); restroomBlock(R2, 8.3, 16.0, 1.3, 8.0, 1.3); wallY(R2.B, 16.06, 1.24, PY);
     const T2 = spaceCtx(2, box, cyl, rooms, {num: '207', name: 'Pastry Kitchen & Stores', x0: 16.1, x1: PX, y0: 1.3, y1: PY, side: 1, eye: [20.0, 3.2], tier: 'Back of House'});
-    T2.B('steel', 17.0, 23.0, 5.5, 6.3, 0, .9, {tag: 'Pastry Kitchen / ครัวขนม'}); for (let i = 0; i < 3; i++) T2.B('steel', 16.6 + i * 2.4, 18.6 + i * 2.4, PY - .6, PY - .05, 0, 2.2);
+    T2.B('floorService', 16.1, PX, 1.36, PY, 0, .015, {s: false});
+    T2.P('prepTable', 'steel', 17.2, 19.2, 5.5, 6.3, 0, .9, 'v+', {tag: 'Pastry Kitchen / ครัวขนม'}); T2.P('prepTable', 'steel', 19.4, 21.4, 5.5, 6.3, 0, .9, 'v+');
+    T2.P('combiOven', 'steel', 22.9, 23.75, 2.0, 3.1, 0, 1.9, 'u+', {tag: 'Ovens / เตาอบ'}); T2.P('combiOven', 'steel', 22.9, 23.75, 3.2, 4.3, 0, 1.9, 'u+');
+    T2.P('mixer', 'steel', 17.3, 17.9, 7.9, 8.5, 0, 1.2, 'v+', {tag: 'Mixer / เครื่องผสม'}); T2.Pc('person', 'towel', 20.3, 7.0, .64, .64, 0, 1.9, 'v-', {round: true, o: {hat: true, bottom: 'chef', apron: 'chef'}});
+    for (let i = 0; i < 3; i++) T2.P('wireShelf', 'chrome', 16.6 + i * 2.4, 18.6 + i * 2.4, 12.75, 13.3, 0, 2.0, 'v+', {o: {seed: 5 + i}});
   },
   3(box, cyl, rooms, labels){
     // circulation: lift hall -> foyer (x -8.2..8.2, y -3.55..1.1) with the shared fitness/spa reception
-    const FY = spaceCtx(3, box, cyl, rooms, {num: '300', name: 'Fitness & Spa Reception', x0: -8.2, x1: 8.2, y0: -3.55, y1: 1.1, side: -1, eye: [0, .2], tier: 'Wellness'});
+    const FY = spaceCtx(3, box, cyl, rooms, {num: '300', name: 'Reception · Fitness & Spa', x0: -8.2, x1: 8.2, y0: -3.55, y1: 1.1, side: -1, eye: [0, .2], tier: 'Wellness'});
     FY.B('marbleFloor', -8.2, 8.2, -3.5, 1.1, 0, .015, {s: false});
     FY.B('walnut', -1.8, 1.8, -2.3, -1.6, 0, 1.05, {tag: 'Fitness & Spa Reception / เคาน์เตอร์ฟิตเนสและสปา'}); FY.B('marbleBlack', -1.85, 1.85, -2.35, -1.55, 1.05, 1.1, {s: false}); deskChair(FY, -.7, -2.9, [-.7, -2.0]); deskChair(FY, .7, -2.9, [.7, -2.0]);
     plant(FY, -7.6, .4, 1.4); plant(FY, 7.6, .4, 1.4);
+    for (const x of [-1.2, .4]) FY.P('monitor', 'black', x, x + .55, -2.3, -1.85, 1.1, 1.45, 'v-', {s: false});
+    FY.Pc('flowers', 'gold', 1.45, -1.95, .34, .34, 1.1, 1.6, 'v+', {round: true, s: false, o: {vase: 'gold'}});
+    FY.B('rug', -7.8, -3.9, -3.3, .2, .015, .025, {s: false}); sofa(FY, -7.6, -5.6, -2.95, .85, 'velvetCream', -1); coffee(FY, -6.6, -1.6, .4); armchair(FY, -4.6, -1.6, 'velvetGreen', 1, [-6.6, -1.6]);
+    FY.P('barShelf', 'walnut', 5.0, 7.8, -3.45, -3.15, 0, 2.2, 'v-', {tag: 'Spa Retail / สินค้าสปา'});
     wallX(FY.B, -3.55, -PX, -2.2, [[-20.5, -19.6], [-12.6, -11.7], [-6.0, -5.0]]);      // gym back wall: doors to both changing rooms + foyer
     wallX(FY.B, -3.55, 8.3, PX, [[8.6, 9.6]]);                                         // spa corridor -> relaxation lounge
     wallY(FY.B, 8.25, -3.49, 1.3, [[-2.9, -1.9]]); wallY(FY.B, 8.25, 1.3, PY);          // foyer | spa corridor, then treatment block edge
@@ -651,26 +820,42 @@ const FAC = {
     for (let i = 0; i < 8; i++) { const x = -22.6 + i * 2.35; F.P('treadmill', 'black', x, x + .85, -12.7, -10.75, 0, 1.45, 'v-', {tag: i === 0 ? 'Treadmills / ลู่วิ่ง' : null}); }
     for (let i = 0; i < 3; i++) { const x = -21.5 + i * 3.4; F.P('rack', 'steel', x, x + 1.6, -7.6, -6.4, 0, 2.2, 'v+', {tag: i === 0 ? 'Strength Racks / เครื่องเวท' : null}); F.P('weightBench', 'leather', x + .5, x + 1.1, -8.8, -7.9, 0, .45, 'v+'); }
     F.P('dumbbellRack', 'steel', -10.6, -7.0, -4.4, -3.9, 0, .95, 'v+', {tag: 'Dumbbells / ดัมเบล'});
+    for (let i = 0; i < 4; i++) { const x = -12.2 + i * 1.0; F.P('bike', 'black', x - .275, x + .275, -9.9, -8.6, 0, 1.3, 'v+', {tag: i === 0 ? 'Spin Bikes / จักรยาน' : null}); }
+    for (let i = 0; i < 3; i++) { const x = -7.8 + i * 1.4; F.P('elliptical', 'black', x - .35, x + .35, -10.0, -8.1, 0, 1.7, 'v+', {tag: i === 0 ? 'Ellipticals / เครื่องเดินวงรี' : null}); }
+    F.P('cableStation', 'steel', -12.6, -10.4, -7.4, -6.5, 0, 2.3, 'v+', {tag: 'Cable Station / เครื่องเคเบิล'});
+    B('rubber', -8.9, -3.2, -7.9, -4.9, .015, .03, {s: false}); for (let i = 0; i < 3; i++) { const x = -8.2 + i * 1.0; F.P('yogaMat', 'velvetNavy', x - .33, x + .33, -7.7, -5.85, .03, .15, 'v+', {o: {m: 'velvetNavy'}}); }
+    F.P('towelShelf', 'walnut', -2.9, -2.45, -6.4, -5.2, 0, 1.6, 'u+', {tag: 'Towels / ผ้าเช็ดตัว'}); B('steel', -2.9, -2.45, -7.2, -6.7, 0, 1.15); C('glassClear', -2.67, -6.95, .13, 1.15, 1.6, {s: false, tag: 'Water / น้ำดื่ม'});
     B('mirror', -10.6, -7.0, -3.68, -3.64, 1.0, 2.4, {s: false});
-    B('glassShower', -2.24, -2.2, -PY, -3.61, 0, 2.6);
+    B('glassShower', -2.24, -2.2, -PY, -3.64, 0, 2.6);
     const Y = spaceCtx(3, box, cyl, rooms, {num: '302', name: 'Yoga & Pilates Studio', x0: -2.1, x1: 8.0, y0: -PY, y1: -3.6, side: -1, eye: [3.0, -5.0], tier: 'Wellness'});
     Y.B('woodFloor', -2.1, 8.0, -PY, -3.6, 0, .015, {s: false}); Y.B('glassShower', 8.21, 8.25, -PY, -3.61, 0, 2.6, {room: 'common'});
-    for (let i = 0; i < 4; i++) for (let j = 0; j < 2; j++) Y.B(j ? 'velvetBlush' : 'velvetGreen', -1.2 + i * 2.3, -.4 + i * 2.3, -11.6 + j * 3.2, -9.6 + j * 3.2, .015, .03, {s: false, tag: i === 0 && j === 0 ? 'Yoga Mats / เสื่อโยคะ' : null});
+    for (let i = 0; i < 4; i++) for (let j = 0; j < 2; j++) { const x = -.8 + i * 2.3, y = -10.6 + j * 3.2; Y.P('yogaMat', 'velvetGreen', x - .33, x + .33, y - .93, y + .93, .015, .13, 'v-', {tag: i === 0 && j === 0 ? 'Yoga Mats / เสื่อโยคะ' : null, o: {m: j ? 'velvetBlush' : 'velvetGreen'}}); }
+    Y.B('gold', -1.8, 7.6, -PY + .26, -PY + .3, 1.0, 1.04, {s: false}); for (let x = -1.6; x < 7.7; x += 2.3) Y.B('gold', x - .02, x + .02, -PY + .06, -PY + .28, 1.0, 1.04, {s: false});
+    Y.P('towelShelf', 'walnut', 6.4, 7.9, -4.3, -3.85, 0, 1.6, 'v+', {tag: 'Mats & Props / อุปกรณ์โยคะ', o: {roll: 'velvetNavy'}}); plant(Y, -1.55, -4.3, 1.4);
     Y.B('mirror', -2.05, 7.9, -PY + .02, -PY + .06, .3, 2.4, {s: false});
     wallX(Y.B, -3.55, -2.2, 8.25, [[2.3, 3.3]], 'glassShower', .04);
     const SR = spaceCtx(3, box, cyl, rooms, {num: '303', name: 'Relaxation Lounge', x0: 8.3, x1: PX, y0: -PY, y1: -3.6, side: -1, eye: [16.0, -5.2], tier: 'Wellness'});
     for (let i = 0; i < 5; i++) { const x = 13.6 + i * 1.95; SR.P('lounger', 'velvetCream', x, x + .8, -12.8, -10.8, 0, .75, 'v+', {tag: i === 0 ? 'Relaxation Loungers / เตียงพักผ่อน' : null, o: {wood: 'walnut'}}); }
-    sofa(SR, 9.4, 11.8, -9.0, .9, 'velvetCream', -1); coffee(SR, 10.6, -10.3, .4, .42, {tag: 'Herbal Tea Bar / ชาสมุนไพร'}); plant(SR, 23.3, -6.0, 1.5); plant(SR, 9.0, -12.6, 1.5);
+    sofa(SR, 9.4, 11.8, -9.0, .9, 'velvetCream', -1); coffee(SR, 10.6, -10.3, .4, .42); plant(SR, 23.2, -12.4, 1.5); plant(SR, 9.0, -12.6, 1.5);
+    for (let i = 0; i < 4; i++) sideTable(SR, 13.6 + i * 1.95 + 1.375, -11.2, .2, .55);
+    SR.B('rug', 9.0, 22.6, -13.1, -7.6, .015, .025, {s: false});
+    SR.B('walnut', 10.0, 12.6, -4.5, -3.9, 0, .95, {tag: 'Herbal Tea Bar / ชาสมุนไพร'}); SR.B('marble', 9.95, 12.65, -4.55, -3.85, .95, .99, {s: false}); SR.Pc('cakeStand', 'gold', 10.6, -4.2, .3, .3, .99, 1.34, 'v+', {round: true, s: false}); SR.Pc('flowers', 'glassClear', 12.0, -4.2, .3, .3, .99, 1.5, 'v+', {round: true, s: false});
+    SR.B('marbleDark', PX - .15, PX, -9.0, -5.0, 0, 2.4, {tag: 'Water Wall / ผนังน้ำตก'}); SR.B('water', PX - .18, PX - .15, -8.9, -5.1, .35, 2.3, {s: false}); SR.B('marble', PX - .6, PX - .15, -9.0, -5.0, 0, .35); SR.B('water', PX - .55, PX - .2, -8.95, -5.05, .3, .33, {s: false});
     // changing rooms (entered from the gym), each with sauna + steam
     for (const [num, nm, x0, x1] of [['304', 'Changing Room (Men) · Sauna · Steam', -PX, -16.11], ['305', 'Changing Room (Women) · Sauna · Steam', -15.99, -8.31]]) {
       const Cn = spaceCtx(3, box, cyl, rooms, {num, name: nm, x0, x1, y0: -3.49, y1: PY, side: 1, eye: [x0 + 2.6, -1.0], tier: 'Wellness'});
       Cn.B('marbleFloor', x0, x1, -3.49, PY, 0, .015, {s: false});
       for (let i = 0; i < 8; i++) Cn.P('locker', 'walnut', x0 + .05, x0 + .6, -2.0 + i * .55, -1.48 + i * .55, 0, 2.1, 'u-', {tag: i === 0 ? 'Lockers / ตู้ล็อกเกอร์' : null});
       Cn.P('cushionedBench', 'leather', x0 + 1.5, x0 + 1.9, -1.4, 1.8, 0, .45, 'u+', {tag: 'Bench / ม้านั่ง'}); vanity(Cn, x0 + 4.0, x1 - .1, -3.43, 1, 2);
-      for (let i = 0; i < 3; i++) { const xs = x0 + .1 + i * 1.3; Cn.B('marbleDark', xs, xs + 1.15, 4.4, 5.6, 0, .04, {tag: i === 0 ? 'Showers / ห้องอาบน้ำ' : null}); Cn.B('glassShower', xs, xs + 1.15, 4.36, 4.4, .04, 2.05); Cn.B('glassShower', xs + 1.15, xs + 1.19, 4.4, 5.6, .04, 2.05); }
+      Cn.B('marble', x0 + .1, x0 + 3.95, 5.6, 5.72, 0, 2.4);
+      for (let i = 0; i < 3; i++) { const xs = x0 + .1 + i * 1.3; Cn.B('marbleDark', xs, xs + 1.15, 4.4, 5.6, 0, .04, {tag: i === 0 ? 'Showers / ห้องอาบน้ำ' : null}); Cn.B('glassShower', xs, xs + 1.15, 4.36, 4.4, .04, 2.05); Cn.B('marble', xs + 1.15, xs + 1.25, 4.4, 5.6, 0, 2.2);
+        Cn.C('gold', xs + .575, 5.25, .12, 2.12, 2.15, {s: false}); Cn.B('gold', xs + .56, xs + .59, 5.25, 5.6, 2.15, 2.18, {s: false}); Cn.B('gold', xs + .5, xs + .65, 5.58, 5.6, 1.05, 1.2, {s: false}); Cn.B('gold', xs + .2, xs + .3, 4.33, 4.36, 1.0, 1.45, {s: false}); }
       Cn.B('woodSauna', x0 + .1, x0 + 3.3, 7.0, 10.0, 0, .02, {s: false}); wallX(Cn.B, 6.95, x0 + .1, x0 + 3.4, [[x0 + 2.2, x0 + 3.0]], 'woodSauna'); wallY(Cn.B, x0 + 3.46, 6.89, 10.11, [], 'woodSauna'); wallX(Cn.B, 10.05, x0 + .1, x0 + 3.4, [], 'woodSauna');
-      Cn.B('woodSauna', x0 + .15, x0 + 3.3, 9.3, 9.98, 0, .45, {tag: 'Sauna / ซาวน่า'});
+      Cn.B('woodSauna', x0 + .15, x0 + 3.3, 8.85, 9.45, 0, .45, {tag: 'Sauna / ซาวน่า'}); Cn.B('woodSauna', x0 + .15, x0 + 3.3, 9.45, 9.95, 0, .9);
+      Cn.P('saunaHeater', 'steel', x0 + .25, x0 + .85, 7.15, 7.65, 0, .9, 'v-'); Cn.B('lampGlow', x0 + 1.4, x0 + 2.0, 9.96, 9.97, 1.9, 2.0, {s: false});
       wallX(Cn.B, 6.95, x0 + 3.55, x1 - .05, [[x0 + 4.0, x0 + 4.8]], 'glassShower', .04); Cn.B('marble', x0 + 3.65, x1 - .15, 9.4, 9.95, 0, .45, {tag: 'Steam Room / ห้องอบไอน้ำ'}); wallX(Cn.B, 10.05, x0 + 3.55, x1 - .05, [], 'glassShower', .04);
+      Cn.B('marble', x1 - .65, x1 - .15, 7.6, 9.4, 0, .45); Cn.B('marbleDark', x0 + 3.65, x1 - .15, 7.05, 9.95, .015, .025, {s: false}); Cn.C('gold', x0 + 5.0, 7.3, .06, .3, .4, {s: false});
+      Cn.P('towelShelf', 'walnut', x0 + 1.0, x0 + 2.4, -3.43, -2.98, 0, 1.6, 'v-', {tag: 'Towels / ผ้าเช็ดตัว'}); Cn.B('rug', x0 + 1.0, x0 + 2.4, -1.6, 2.0, .015, .025, {s: false});
       for (let i = 0; i < 2; i++) { const ys = PY - 1.3 - i * 1.3; wc(Cn, x1 - .06, ys, -1); Cn.B('walnut', x1 - 1.5, x1 - .06, ys - .68, ys - .62, 0, 2.1); }
     }
     // treatment suites (right back) along the spa corridor x 8.31..9.7
@@ -679,7 +864,9 @@ const FAC = {
     const xs = [9.76, 14.5, 19.2, PX];
     for (const [ya, yb] of [[-3.49, -.2], [-.2, 3.1]]) {
       for (let i = 0; i < 3; i++) { if (ya > -1 && i === 2) continue; const a = xs[i], b = xs[i + 1];
-        TR.B('woodFloor', a + .06, b - .06, ya + .06, yb - .06, 0, .015, {s: false}); TR.P('massageTable', 'linen', a + 1.2, b - 1.2, (ya + yb) / 2 - .4, (ya + yb) / 2 + .4, 0, .72, 'u+', {tag: i === 0 && ya < -1 ? 'Treatment Room / ห้องนวด' : null}); TR.B('walnut', b - .7, b - .12, yb - .66, yb - .18, 0, .85); }
+        const ym = (ya + yb) / 2; TR.B('woodFloor', a + .06, b - .06, ya + .06, yb - .06, 0, .015, {s: false}); TR.P('massageTable', 'linen', a + 1.2, b - 1.2, ym - .4, ym + .4, 0, .72, 'u+', {tag: i === 0 && ya < -1 ? 'Treatment Room / ห้องนวด' : null});
+        TR.P('nightstand', 'walnut', b - .75, b - .15, yb - .66, yb - .18, 0, .85, 'v+'); TR.Pc('flowers', 'glassClear', b - .45, yb - .42, .26, .26, .85, 1.25, 'v+', {round: true, s: false}); TR.Pc('stool', 'leather', a + 1.0, ym + .62, .4, .4, 0, .6, 'v+', {round: true});
+        TR.Pc('pendant', 'lampShade', (a + b) / 2, ym, .5, .5, 1.9, 2.7, 'v+', {round: true, s: false}); TR.Pc('plant', 'pot', a + .45, yb - .45, .6, .6, 0, 1.3, 'v+', {round: true, o: {potR: .2}}); }
       wallX(TR.B, yb, 9.79, PX, []); }
     wallY(TR.B, 9.73, -3.49, 3.16, [[-2.6, -1.7], [.7, 1.6]]); for (const x of [14.5, 19.2]) { wallY(TR.B, x, -3.49, -.26); wallY(TR.B, x, -.14, 3.04); }
     wallY(TR.B, 9.73, 3.16, PY, [[4.0, 5.0]]);
@@ -687,6 +874,8 @@ const FAC = {
     TR.P('massageTable', 'linen', 11.0, 11.9, 6.0, 8.0, 0, .72, 'v+', {tag: 'Couples Suite / ห้องสปาคู่'}); TR.P('massageTable', 'linen', 12.8, 13.7, 6.0, 8.0, 0, .72, 'v+');
     bathtub(TR, 16.5, 18.5, 9.8, 11.2, true); TR.B('marbleDark', 20.0, 21.4, 9.8, 11.4, 0, .04); TR.B('glassShower', 19.96, 20.0, 9.8, 11.4, .04, 2.05);
     sofa(TR, 15.6, 17.8, 5.0, .85, 'velvetCream', -1); plant(TR, 23.2, 4.0, 1.4);
+    for (const x of [11.45, 13.25]) TR.Pc('pendant', 'lampShade', x, 7.0, .5, .5, 1.9, 2.7, 'v+', {round: true, s: false}); TR.Pc('flowers', 'glassClear', 12.35, 8.6, .3, .3, 0, .9, 'v+', {round: true});
+    TR.B('art', 9.62, 9.645, -2.0, -.8, 1.2, 2.0, {s: false}); TR.B('art', 9.62, 9.645, 1.9, 3.0, 1.2, 2.0, {s: false}); TR.Pc('plant', 'pot', 8.75, -2.9, .6, .6, 0, 1.5, 'v+', {round: true, o: {potR: .22}});
     TR.B('steel', 8.4, 9.6, 9.0, PY - .1, 0, 2.0, {tag: 'Linen & Laundry / ห้องผ้า'});
     labels.push(['Spa Corridor / ทางเดินสปา', 9.0, 1.0, 2.3]);
     const LD = spaceCtx(3, box, cyl, rooms, {num: '307', name: 'Spa Laundry & Staff', x0: -8.13, x1: 8.13, y0: 8.1, y1: PY, side: 1, eye: [-.85, 9.6], tier: 'Back of House'});
@@ -696,12 +885,20 @@ const FAC = {
   18(box, cyl, rooms, labels){
     const R = spaceCtx(18, box, cyl, rooms, {num: 'R01', name: 'Sky Pool & Rooftop Bar', x0: -IX, x1: IX, y0: -IY, y1: IY, side: -1, eye: [0, -2.4], tier: 'Rooftop'});
     const {B, C} = R;
-    B('deck', -IX, IX, -IY, IY, 0, .02, {s: false});
+    { const xr = xb(3) - PW / 2, sx0 = xr - SKYSTAIR.u1, sx1 = xr - SKYSTAIR.u0, y0 = V0 + STAIR.land - .02, y1 = V0 + STAIR.land + STAIR.run + STAIR.land;
+      B('deck', -IX, IX, -IY, V0 + SKYSTAIR.v0, 0, .02, {s: false}); B('deck', -IX, IX, y1, IY, 0, .02, {s: false});
+      for (const [a, b] of [[-IX, sx0], [sx1, STAIRS[0].x0], [STAIRS[0].x1, STAIRS[1].x0], [STAIRS[1].x1, IX]]) B('deck', a, b, V0 + SKYSTAIR.v0, y1, 0, .02, {s: false}); }
     // glass balustrade along the slab edge (not solid for the inside check)
-    for (const [x0, x1, y0, y1] of [[-12.5, 12.5, -8.45, -8.4], [-12.5, 12.5, 8.4, 8.45], [-14.25, -14.2, -6.7, 6.7], [14.2, 14.25, -6.7, 6.7]]) { B('glassShower', x0, x1, y0, y1, 0, 1.15, {s: false}); B('gold', x0, x1, y0, y1, 1.15, 1.2, {s: false}); }
+    for (const [x0, x1, y0, y1] of [[-12.5, 12.5, -8.45, -8.4], [-12.5, 12.5, 8.4, 8.45], [-14.25, -14.2, -6.7, 6.7], [14.2, 14.25, -6.7, 6.7]]) { B('balGlass', x0, x1, y0, y1, 0, 1.15, {s: false}); B('gold', x0, x1, y0, y1, 1.15, 1.2, {s: false}); B('steel', x0, x1, y0, y1, 0, .06, {s: false}); const L = Math.max(x1 - x0, y1 - y0), n = Math.round(L / 1.5); for (let i = 0; i <= n; i++) { const t = i / n, px = x0 + (x1 - x0) * t, py = y0 + (y1 - y0) * t; B('steel', px - .03, px + .03, py - .03, py + .03, 0, 1.15, {s: false}); } }
     // infinity pool along the river edge
-    B('marble', -11.2, 5.8, -7.8, -7.5, 0, .5); B('marble', -11.2, 5.8, -3.6, -3.3, 0, .5); B('marble', -11.2, -10.9, -7.5, -3.6, 0, .5); B('marble', 5.5, 5.8, -7.5, -3.6, 0, .5);
-    B('water', -10.9, 5.5, -7.5, -3.6, 0, .46, {s: false, tag: 'Infinity Sky Pool / สระอินฟินิตี้'});
+    // 1.2 m deep tank on the roof slab: glass wall + overflow edge toward the river, tiled shell, steps up at the east end
+    B('glassShower', -11.2, 5.8, -7.8, -7.72, 0, 1.12); B('marble', -10.9, 5.5, -7.8, -7.62, 1.12, 1.17);
+    B('marble', -11.2, 5.8, -3.6, -3.3, 0, 1.25); B('marble', -11.2, -10.9, -7.72, -3.6, 0, 1.25); B('marble', 5.5, 5.8, -7.72, -3.6, 0, 1.25);
+    B('poolTile', -10.9, 5.5, -7.72, -3.6, 0, .05, {s: false}); B('poolTile', -10.9, -9.8, -7.72, -3.6, .05, .5, {s: false});
+    B('water', -10.9, 5.5, -7.72, -3.6, .05, 1.12, {s: false, tag: 'Infinity Sky Pool 1.2 m / สระอินฟินิตี้ ลึก 1.2 ม.'});
+    for (const x of [-7, -2, 3]) B('lampGlow', x - .2, x + .2, -3.62, -3.6, .6, .7, {s: false});
+    for (let k = 0; k < 3; k++) B('marble', 5.8 + k * .3, 6.1 + k * .3, -5.0, -4.0, 0, 1.25 - (k + 1) * .4 + .4);
+    B('gold', 5.55, 5.6, -4.8, -4.75, .5, 1.6, {s: false}); B('gold', 5.55, 5.6, -4.25, -4.2, .5, 1.6, {s: false});
     for (let i = 0; i < 8; i++) { const x = -10.6 + i * 2.0; R.P('lounger', 'linen', x, x + .75, -2.9, -1.0, 0, .75, 'v+', {tag: i === 0 ? 'Sun Loungers / เตียงอาบแดด' : null}); if (i % 2 === 1 && i < 7) R.Pc('umbrella', 'linen', x + 1.375, -2.4, .5, .5, 0, 2.6, 'v+', {round: true, s: false}); }
     // bar (east)
     B('walnut', 9.0, 9.8, -6.6, -1.4, 0, 1.08, {tag: 'Rooftop Bar / บาร์ดาดฟ้า'}); B('marbleBlack', 8.95, 9.85, -6.65, -1.35, 1.08, 1.13, {s: false}); B('walnut', 11.6, 12.2, -6.6, -1.4, 0, 1.0); R.P('barShelf', 'walnut', 11.6, 12.2, -6.6, -1.4, 1.0, 2.4, 'u+');
@@ -711,6 +908,11 @@ const FAC = {
     [[-2.6, -0.2], [2.6, -0.2]].forEach(([x, y]) => { coffee(R, x, y, .45); armchair(R, x - 1.25, y, 'velvetNavy', 1, [x, y]); armchair(R, x + 1.25, y, 'velvetNavy', 1, [x, y]); });
     for (const x of [-13.3, 13.3]) for (const y of [-6.0, 0.6]) plant(R, x, y, 1.5);
     for (const y of [-5.6, -2.6]) { R.Pc('cocktailTable', 'marbleBlack', 6.9, y, .7, .7, 0, 1.05, 'v+', {round: true}); stools(R, [[6.9, y - .75], [6.9, y + .75]], .75); }
+    // timber pergola with warm downlights over the rooftop bar (replaces the old glowing roof box)
+    for (const x of [7.9, 12.55]) for (const y of [-7.0, -4.0, -1.0]) B('walnut', x - .08, x + .08, y - .08, y + .08, 0, 3.0);
+    for (let y = -7.2; y <= -.8; y += .45) B('walnut', 7.7, 12.75, y - .04, y + .04, 3.0, 3.12, {s: false});
+    B('walnut', 7.7, 12.75, -7.2, -7.05, 2.88, 3.0, {s: false}); B('walnut', 7.7, 12.75, -.95, -.8, 2.88, 3.0, {s: false});
+    for (const y of [-5.5, -3.0]) B('lampGlow', 9.1, 9.7, y - .05, y + .05, 2.84, 2.88, {s: false});
     labels.push(['River View Deck / จุดชมวิวแม่น้ำ', 0, -7.9, 1.6]);
   }
 };

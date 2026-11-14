@@ -3,7 +3,7 @@
 // and returned as {materialName: BufferGeometry} in three.js axes, ready to be instanced.
 import * as THREE from 'three';
 import {RoundedBoxGeometry} from 'three/addons/geometries/RoundedBoxGeometry.js';
-import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
+import {mergeGeometries, mergeVertices} from 'three/addons/utils/BufferGeometryUtils.js';
 
 const TAU = Math.PI * 2;
 function rng(seed){ let a = seed >>> 0; return () => { a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
@@ -64,6 +64,12 @@ class Kit {
   ext(m, shape, z0, z1, o = {}){
     const g = new THREE.ExtrudeGeometry(shape, {depth: z1 - z0, bevelEnabled: !!o.bevel, bevelSize: o.bevel || 0, bevelThickness: o.bevel || 0, bevelSegments: 2, curveSegments: o.cs || 24});
     g.rotateX(-Math.PI / 2); g.translate(0, z0, 0); return this.add(m, g);
+  }
+  // organic low-poly lump (tree canopy cluster): jittered icosphere, flat normals
+  blob(m, x, y, z, rx, ry, rz, r){
+    let g = mergeVertices(new THREE.IcosahedronGeometry(1, 1)); const p = g.attributes.position;
+    for (let i = 0; i < p.count; i++) { const k = .82 + r() * .32; p.setXYZ(i, p.getX(i) * k, p.getY(i) * k, p.getZ(i) * k); }
+    g = g.toNonIndexed(); g.computeVertexNormals(); g.scale(rx, rz, ry); g.translate(x, z, -y); return this.add(m, g);
   }
   // side profile [[y, z]] extruded across x0..x1
   extX(m, pts, x0, x1, bevel = 0){
@@ -217,6 +223,11 @@ export const PROPS = {
     K.lathe(cloth, 0, 0, [[0, top], [r - .03, top], [r - .005, top - .012], [r - .006, top - .04], [r - .01, skirt + .02], [r - .008, skirt], [r - .03, skirt - .003]], 72, 1, 1,
       (a, y) => y < top - .03 ? 1 - .018 * (1 + Math.sin(a * Math.round(r * 30))) * Math.min(1, (top - .03 - y) / .2) : 1);
     if (o.setting !== 'none') for (let i = 0; i < seats; i++) { const a = (o.a0 || 0) + i * TAU / seats; K.at(Math.cos(a) * (r - .2), Math.sin(a) * (r - .2), top, a + Math.PI / 2, () => placeSetting(K, o.setting || (r < .5 ? 'coffee' : 'dinner'))); }
+    if (o.game) {                                                      // chess board + pieces
+      for (let i = 0; i < 8; i++) for (let j = 0; j < 8; j++) K.box((i + j) % 2 ? 'black' : 'linen', -.2 + i * .05, -.15 + i * .05, -.2 + j * .05, -.15 + j * .05, top, top + .006);
+      for (let i = 0; i < 8; i++) for (const [j, m] of [[0, 'linen'], [1, 'linen'], [6, 'black'], [7, 'black']]) K.cyl(m, -.175 + i * .05, -.175 + j * .05, .015, .012, top + .006, top + .03 + (j % 7 === 0 ? .02 : 0), 8);
+      return;
+    }
     if (r >= .5) { K.lathe('glassClear', 0, 0, [[0, top], [.05, top], [.06, top + .1], [.04, top + .16], [0, top + .14]], 14); flowerDome(K, 0, 0, top + .19, .09, 14, hash('c' + r)); for (const a of [0, Math.PI]) K.cyl('lampGlow', Math.cos(a) * .2, Math.sin(a) * .2, .022, .022, top, top + .12, 10); }
     else { K.cyl('glassClear', 0, 0, .025, .025, top, top + .1, 10); K.ell('blossom', 0, 0, top + .12, .035, .035, .03, {ws: 8, hs: 5}); }
   },
@@ -391,7 +402,7 @@ export const PROPS = {
     for (const sx of [-1, 1]) { K.box('steel', sx * (w / 2 - .04) - .035, sx * (w / 2 - .04) + .035, -d / 2 + .01, d / 2 - .01, h - .07, h, .006); K.box('black', sx * (w / 2 - .04) - .04, sx * (w / 2 - .04) + .04, -d / 2 + .01, d / 2 - .01, 0, .04); }
     K.hcyl('chrome', 0, -d / 2 + .25, 1.35, .014, w - .02, 'x', 10);
     for (const s of [-1, 1]) for (let i = 0; i < 3; i++) K.hcyl(i ? 'rubber' : 'red', s * (w / 2 - .14 - i * .045), -d / 2 + .25, 1.35, .225 - i * .03, .035, 'x', 24);
-    for (let i = 0; i < 4; i++) K.hcyl('rubber', -w / 2 + .3 + i * .15, d / 2 - .12, .25, .2 - i * .02, .04, 'x', 22);
+    for (let i = 0; i < 4; i++) K.hcyl('rubber', -w / 2 + .3 + i * .15, d / 2 - .22, .25, .2 - i * .02, .04, 'x', 22);
   },
   weightBench(K, w, d, h, o){
     K.rbox('leather', 0, 0, h - .05, w - .02, d - .02, .1, {r: .03}); K.box('steel', -.04, .04, -d / 2 + .1, d / 2 - .1, h - .1, h - .1 + .02);
@@ -540,7 +551,7 @@ export const PROPS = {
   },
   umbrella(K, w, d, h, o){
     K.lathe('black', 0, 0, [[0, 0], [.22, 0], [.22, .06], [.05, .08], [0, .08]], 16); K.cyl('walnut', 0, 0, .025, .025, .08, h - .05, 8);
-    K.lathe(o.fab || 'linen', 0, 0, [[0, h], [.15, h - .05], [1.2, h - .42], [1.25, h - .5], [1.2, h - .5]], 8, 1, 1);
+    K.lathe('canvas', 0, 0, [[0, h], [.15, h - .05], [1.2, h - .42], [1.25, h - .5], [1.2, h - .5]], 8, 1, 1);
     for (let i = 0; i < 8; i++) { const a = i * TAU / 8; K.rod('walnut', [0, 0, h - .1], [Math.cos(a) * 1.15, Math.sin(a) * 1.15, h - .47], .008, 4); }
   },
   car(K, w, d, h, o){
@@ -558,6 +569,197 @@ export const PROPS = {
     for (const sx of [-1, 1]) for (const sy of [-1, 1]) { const y = sy * (d / 2 - (suv ? .82 : .78)); K.hcyl('tyre', sx * (w / 2 - .14), y, .34, .34, .24, 'x', 20); K.hcyl('chrome', sx * (w / 2 - .013), y, .34, .21, .012, 'x', 16); K.hcyl('black', sx * (w / 2 - .004), y, .34, .1, .008, 'x', 10); }
     for (const sx of [-1, 1]) { K.box('lampGlow', sx * (w / 2 - .3) - .2, sx * (w / 2 - .3) + .2, F + .02, F + .06, .6, .67, .02); K.box('red', sx * (w / 2 - .26) - .22, sx * (w / 2 - .26) + .22, R - .06, R - .02, .66, .74, .02); K.box('black', sx * (w / 2 - .01) - .03, sx * (w / 2 - .01) + .03, g0 + .05, g0 + .2, belt, belt + .09, .01); }
     K.box('black', -w / 2 + .35, w / 2 - .35, F, F + .05, .36, .5, .02); K.box('chrome', -.12, .12, R - .03, R, .5, .56);
+  },
+  tree(K, w, d, h, o){
+    // broad tropical shade tree (rain tree) or smaller frangipani; canopy from jittered clusters
+    const R = w / 2, r = rng(hash('tree' + (o.seed || 0) + w + h + (o.type || ''))), fr = o.type === 'frangi', th = h * (fr ? .45 : .4);
+    const lx = (r() - .5) * R * .12, ly = (r() - .5) * R * .12, tr = fr ? Math.max(.08, R * .06) : Math.max(.14, R * .06);
+    K.rod('trunk', [0, 0, 0], [lx, ly, th], tr, 9, tr * .7); K.cyl('trunk', 0, 0, tr * 1.5, tr, 0, .35, 9);
+    const n = fr ? 6 : 10;
+    for (let i = 0; i < n; i++) {
+      const a = i * TAU / n + r() * .5, rr = R * (.28 + r() * .22), cx = lx + Math.cos(a) * rr, cy = ly + Math.sin(a) * rr, cz = th + (h - th) * (fr ? .45 + r() * .3 : .35 + r() * .3), s = R * (.3 + r() * .14);
+      K.rod('trunk', [lx, ly, th * .92], [lx + Math.cos(a) * rr * .75, ly + Math.sin(a) * rr * .75, cz - s * .4], tr * .45, 6, tr * .25);
+      K.blob(i % 3 === 0 ? 'leafDark' : i % 3 === 1 ? 'leaf' : 'leafLight', cx, cy, cz, s * 1.12, s * 1.12, s * (fr ? .7 : .55), r);
+      if (fr) for (let k = 0; k < 6; k++) { const b = r() * TAU; K.ell(k % 2 ? 'linen' : 'blossom', cx + Math.cos(b) * s * .9, cy + Math.sin(b) * s * .9, cz + s * .3, .07, .07, .05, {ws: 6, hs: 4}); }
+    }
+    K.blob('leaf', lx, ly, h - R * .32, R * .5, R * .5, R * .3, r);
+  },
+  palm(K, w, d, h, o){
+    const R = w / 2, r = rng(hash('palm' + (o.seed || 0) + w + h)), top = h - .5, bx = (r() - .5) * 1.4, by = (r() - .5) * 1.4;
+    const pt = t => [bx * t * t, by * t * t, top * t];
+    for (let i = 0; i < 7; i++) { const a = pt(i / 7), b = pt((i + 1) / 7); K.rod('trunk', a, b, .2 - i * .012, 9, .19 - (i + 1) * .012); K.torus('trunk', b[0], b[1], b[2] - .02, .19 - (i + 1) * .012, .025, {ts: 10, rs: 4}); }
+    const C = pt(1); K.ell('leafDark', C[0], C[1], C[2], .3, .3, .35, {ws: 8, hs: 6});
+    for (let i = 0; i < 4; i++) { const a = i * TAU / 4 + .4; K.ell('bread', C[0] + Math.cos(a) * .22, C[1] + Math.sin(a) * .22, C[2] - .25, .1, .1, .12, {ws: 6, hs: 5}); }
+    const nf = 13;
+    for (let i = 0; i < nf; i++) {
+      const a = i * TAU / nf + r() * .25, L = R * (.85 + r() * .15), dr = .45 + r() * .35, ca = Math.cos(a), sa = Math.sin(a), up = i % 3 === 0 ? .35 : 0;
+      K.sheet(i % 2 ? 'leaf' : 'leafDark', (u, v) => { const vv = v * 2 - 1, s = u * L, wd = .55 * Math.sin(Math.PI * Math.min(1, u * 1.15)) * (1 - u * .4);
+        return [C[0] + ca * s - sa * vv * wd, C[1] + sa * s + ca * vv * wd, C[2] + Math.sin(u * Math.PI * .55) * L * (.22 + up) - u * u * L * dr * .55 - Math.abs(vv) * .1 * wd]; }, 10, 2);
+    }
+  },
+  lampPost(K, w, d, h, o){
+    K.lathe('bronze', 0, 0, [[0, 0], [.2, 0], [.2, .08], [.13, .14], [.1, .5], [.07, .6], [0, .6]], 12);
+    K.cyl('bronze', 0, 0, .065, .05, .6, h - .55, 10);
+    K.box('bronze', -.17, .17, -.17, .17, h - .58, h - .55); K.box('lampGlow', -.13, .13, -.13, .13, h - .55, h - .17);
+    for (const sx of [-1, 1]) for (const sy of [-1, 1]) K.box('bronze', sx * .14 - .02, sx * .14 + .02, sy * .14 - .02, sy * .14 + .02, h - .55, h - .17);
+    K.cyl('bronze', 0, 0, .21, .03, h - .17, h - .02, 4); K.ell('gold', 0, 0, h - .02, .03, .03, .03, {ws: 6, hs: 4});
+  },
+  bollard(K, w, d, h, o){ K.cyl('bronze', 0, 0, w / 2, w / 2 * .9, 0, h - .15, 14); K.cyl('lampGlow', 0, 0, w / 2 * .85, w / 2 * .85, h - .15, h - .05, 14); K.cyl('bronze', 0, 0, w / 2 * .95, w / 2, h - .05, h, 14); },
+  parkBench(K, w, d, h, o){
+    for (const s of [-1, 1]) { K.box('bronze', s * (w / 2 - .12) - .03, s * (w / 2 - .12) + .03, -d / 2 + .05, d / 2 - .05, 0, .42); K.box('bronze', s * (w / 2 - .12) - .03, s * (w / 2 - .12) + .03, d / 2 - .12, d / 2 - .05, .42, h); }
+    for (let i = 0; i < 5; i++) K.box('deck', -w / 2, w / 2, -d / 2 + .04 + i * .085, -d / 2 + .11 + i * .085, .42, .46, .006);
+    for (let i = 0; i < 3; i++) K.rbox('deck', 0, d / 2 - .1, .58 + i * .11, w, .03, .08, {rx: -.15});
+  },
+  fountain(K, w, d, h, o){
+    const R = w / 2;
+    K.lathe('marble', 0, 0, [[R - .5, .08], [R - .5, .52], [R - .55, .62], [R + .02, .62], [R, .5], [R, 0], [R - .5, 0]].reverse(), 72);
+    K.cyl('water', 0, 0, R - .5, R - .5, .3, .46, 72);
+    K.lathe('marble', 0, 0, [[0, .46], [1.1, .46], [.8, .7], [.5, 1.0], [.42, 1.3], [0, 1.3]], 32);
+    K.lathe('marble', 0, 0, [[0, 1.25], [.5, 1.25], [2.4, 1.48], [2.65, 1.62], [2.58, 1.68], [2.35, 1.56], [0, 1.52]], 48); K.cyl('water', 0, 0, 2.36, 2.36, 1.5, 1.6, 48);
+    K.cyl('waterJet', 0, 0, 2.82, 2.6, .46, 1.62, 48, true);
+    K.lathe('marble', 0, 0, [[0, 1.6], [.32, 1.6], [.25, 2.0], [.22, 2.35], [0, 2.35]], 24);
+    K.lathe('marble', 0, 0, [[0, 2.3], [.3, 2.3], [1.2, 2.48], [1.35, 2.6], [1.3, 2.65], [1.18, 2.55], [0, 2.52]], 40); K.cyl('water', 0, 0, 1.19, 1.19, 2.5, 2.58, 40);
+    K.cyl('waterJet', 0, 0, 1.45, 1.33, 1.6, 2.62, 40, true);
+    K.lathe('gold', 0, 0, [[0, 2.55], [.18, 2.55], [.1, 2.8], [.16, 2.95], [0, 3.05]], 16);
+    K.lathe('waterJet', 0, 0, [[0, 3.0], [.14, 3.0], [.08, h - .5], [.18, h - .25], [0, h]], 16);
+    const nj = 18; for (let i = 0; i < nj; i++) { const a = i * TAU / nj, r0 = R - .7, r1 = 3.1, pts = []; for (let k = 0; k <= 7; k++) { const t = k / 7, rr = r0 + (r1 - r0) * t; pts.push([Math.cos(a) * rr, Math.sin(a) * rr, .46 + Math.sin(Math.PI * t) * 1.5]); } for (let k = 0; k < 7; k++) K.rod('waterJet', pts[k], pts[k + 1], .035, 5); }
+    for (let i = 0; i < 12; i++) { const a = (i + .5) * TAU / 12; K.cyl('lampGlow', Math.cos(a) * (R - .9), Math.sin(a) * (R - .9), .12, .12, .3, .33, 10); }
+  },
+  flagPole(K, w, d, h, o){
+    K.cyl('steel', 0, 0, .09, .05, 0, h, 10); K.ell('gold', 0, 0, h + .04, .08, .08, .08, {ws: 8, hs: 6});
+    K.sheet(o.cloth || 'red', (u, v) => [.06 + u * 1.9, Math.sin(u * 6) * .12 * u, h - .25 - v * 1.25], 14, 2);
+  },
+  gazebo(K, w, d, h, o){
+    const R = w / 2;
+    K.lathe('marble', 0, 0, [[0, 0], [R, 0], [R, .45], [0, .45]], 8); K.lathe('marble', 0, 0, [[R, 0], [R + .4, 0], [R + .4, .15], [R, .15]], 8);
+    for (let i = 0; i < 8; i++) { const a = (i + .5) * TAU / 8; K.cyl('whitePaint', Math.cos(a) * (R - .45), Math.sin(a) * (R - .45), .14, .12, .45, h * .58, 12); }
+    K.lathe('whitePaint', 0, 0, [[0, h * .58], [R, h * .58], [R + .1, h * .6], [R + .1, h * .64], [0, h * .64]], 8);
+    K.lathe('whitePaint', 0, 0, [[R + .2, h * .64], [R * .7, h * .78], [R * .3, h * .9], [.1, h - .3], [0, h - .3]], 8); K.cyl('gold', 0, 0, .05, .02, h - .3, h, 8);
+    K.cyl('lampGlow', 0, 0, .3, .3, h * .56, h * .58, 12);
+  },
+  cabana(K, w, d, h, o){
+    for (const sx of [-1, 1]) for (const sy of [-1, 1]) K.box('walnut', sx * (w / 2 - .08) - .06, sx * (w / 2 - .08) + .06, sy * (d / 2 - .08) - .06, sy * (d / 2 - .08) + .06, 0, h - .15);
+    K.box('walnut', -w / 2, w / 2, -d / 2, d / 2, h - .2, h - .1, .02); K.rbox('linen', 0, 0, h - .05, w, d, .1, {r: .04});
+    K.sheet('sheer', (u, v) => [-w / 2 + u * w, d / 2 - .1 + Math.sin(u * 30) * .04, .05 + v * (h - .3)], 40, 2);
+    for (const sx of [-1, 1]) K.sheet('sheer', (u, v) => [sx * (w / 2 - .1) + Math.sin(u * 20) * .04, -d / 2 + u * d * .35, .05 + v * (h - .3)], 14, 2);
+    K.at(0, .1, 0, 0, () => PROPS.daybed(K, w - .5, d - .6, .75, {}));
+  },
+  hotTub(K, w, d, h, o){
+    const R = w / 2;
+    K.lathe('marble', 0, 0, [[R - .18, .05], [R - .18, h], [R, h], [R, 0], [R - .18, 0]].reverse(), 40);
+    K.lathe('poolTile', 0, 0, [[0, .05], [R - .18, .05], [R - .18, h - .02]], 40); K.lathe('poolTile', 0, 0, [[R - .5, .05], [R - .5, .45], [R - .18, .45]], 40);
+    K.cyl('water', 0, 0, R - .19, R - .19, .05, h - .1, 40);
+    for (let i = 0; i < 8; i++) { const a = i / 8 * TAU; K.cyl('lampGlow', Math.cos(a) * (R - .2), Math.sin(a) * (R - .2), .04, .04, .3, .34, 8); }
+  },
+  billiard(K, w, d, h, o){
+    // long axis along local x; felt bed, cushions, pockets, balls, cues
+    for (const sx of [-1, 0, 1]) for (const sy of [-1, 1]) K.lathe('walnut', sx * (w / 2 - .2), sy * (d / 2 - .2), [[0, 0], [.09, 0], [.07, .1], [.1, .35], [.08, h - .2], [0, h - .2]], 12);
+    K.box('walnut', -w / 2, w / 2, -d / 2, d / 2, h - .22, h - .06, .03); K.box('throw', -w / 2 + .14, w / 2 - .14, -d / 2 + .14, d / 2 - .14, h - .06, h - .04);
+    for (const s of [-1, 1]) { K.box('walnut', -w / 2, w / 2, s > 0 ? d / 2 - .14 : -d / 2, s > 0 ? d / 2 : -d / 2 + .14, h - .06, h, .02); K.box('walnut', s > 0 ? w / 2 - .14 : -w / 2, s > 0 ? w / 2 : -w / 2 + .14, -d / 2 + .14, d / 2 - .14, h - .06, h, .02); }
+    for (const x of [-w / 2 + .12, 0, w / 2 - .12]) for (const y of [-d / 2 + .12, d / 2 - .12]) K.cyl('black', x, y, .06, .06, h - .055, h + .002, 10);
+    const cols = ['linen', 'red', 'gold', 'velvetNavy', 'black', 'red', 'throw', 'leather']; for (let i = 0; i < 9; i++) K.ell(cols[i % cols.length], w * .18 + (i % 3) * .06, -.06 + Math.floor(i / 3) * .06 - .06, h - .01, .028, .028, .028, {ws: 8, hs: 6});
+    K.ell('linen', -w * .25, 0, h - .01, .028, .028, .028, {ws: 8, hs: 6}); K.rod('walnut', [-w * .45, -.1, h + .01], [w * .05, .15, h + .02], .012, 6);
+  },
+  pingpong(K, w, d, h, o){
+    for (const sx of [-1, 1]) for (const sy of [-1, 1]) K.box('steel', sx * (w / 2 - .35) - .03, sx * (w / 2 - .35) + .03, sy * (d / 2 - .2) - .03, sy * (d / 2 - .2) + .03, 0, h - .04);
+    K.box('courtBlue', -w / 2, w / 2, -d / 2, d / 2, h - .04, h - .01); for (const y of [-d / 2 + .02, d / 2 - .02]) K.box('lineWhite', -w / 2, w / 2, y - .01, y + .01, h - .01, h - .005);
+    for (const x of [-w / 2 + .02, w / 2 - .02]) K.box('lineWhite', x - .01, x + .01, -d / 2, d / 2, h - .01, h - .005); K.box('lineWhite', -w / 2, w / 2, -.004, .004, h - .01, h - .005);
+    K.box('fenceMeshT', -.008, .008, -d / 2 - .0, d / 2, h - .01, h + .14); K.box('black', -.02, .02, -d / 2, d / 2, h + .13, h + .15);
+    for (const s of [-1, 1]) K.ell('linen', s * w * .3, s * .2, h + .02, .02, .02, .02, {ws: 8, hs: 6});
+  },
+  foosball(K, w, d, h, o){
+    for (const sx of [-1, 1]) for (const sy of [-1, 1]) K.box('walnut', sx * (w / 2 - .12) - .04, sx * (w / 2 - .12) + .04, sy * (d / 2 - .1) - .04, sy * (d / 2 - .1) + .04, 0, h - .2);
+    K.box('walnut', -w / 2 + .05, w / 2 - .05, -d / 2 + .1, d / 2 - .1, h - .3, h - .02, .02); K.box('throw', -w / 2 + .1, w / 2 - .1, -d / 2 + .14, d / 2 - .14, h - .1, h - .09);
+    for (let i = 0; i < 8; i++) { const x = -w / 2 + .2 + i * (w - .4) / 7; K.hcyl('chrome', x, 0, h - .06, .008, d, 'y', 6); for (let k = -1; k <= 1; k++) K.box(i % 2 ? 'red' : 'velvetNavy', x - .015, x + .015, k * .12 - .015, k * .12 + .015, h - .1, h - .03); }
+  },
+  beanbag(K, w, d, h, o){ const r = w / 2; K.lathe(o.fab || 'velvetNavy', 0, 0, [[0, 0], [r * .8, 0], [r, h * .3], [r * .85, h * .75], [r * .4, h], [0, h * .95]], 20); },
+  bike(K, w, d, h, o){
+    // spin bike, rider faces -y: flywheel at the front, saddle at the back
+    K.box('black', -w / 2 + .05, w / 2 - .05, -d / 2, -d / 2 + .12, 0, .06, .02); K.box('black', -w / 2 + .05, w / 2 - .05, d / 2 - .12, d / 2, 0, .06, .02);
+    K.rod('black', [0, -d / 2 + .06, .06], [0, -d / 2 + .3, .55], .035, 8); K.rod('black', [0, d / 2 - .06, .06], [0, d / 2 - .35, .72], .035, 8); K.rod('black', [0, -d / 2 + .3, .55], [0, d / 2 - .35, .72], .03, 8);
+    K.hcyl('chrome', 0, -d / 2 + .3, .5, .24, .05, 'x', 28); K.hcyl('black', 0, -d / 2 + .3, .5, .2, .06, 'x', 20);
+    K.rod('black', [0, d / 2 - .35, .72], [0, d / 2 - .3, h - .3], .022, 8); K.rbox('leather', 0, d / 2 - .3, h - .27, .2, .3, .07, {r: .03});
+    K.rod('black', [0, -d / 2 + .3, .55], [0, -d / 2 + .22, h - .12], .024, 8); K.hcyl('chrome', 0, -d / 2 + .2, h - .1, .018, w - .1, 'x', 8);
+    K.rbox('screen', 0, -d / 2 + .16, h - .02, .22, .03, .14, {rx: -.6});
+    for (const s of [-1, 1]) K.box('black', s * .14 - .05, s * .14 + .05, -d / 2 + .25, -d / 2 + .37, .38, .41);
+  },
+  elliptical(K, w, d, h, o){
+    K.box('black', -.1, .1, -d / 2 + .2, d / 2 - .1, 0, .1, .02); K.cyl('black', 0, d / 2 - .25, .25, .25, .05, .55, 20); K.box('black', -w / 2 + .05, w / 2 - .05, d / 2 - .2, d / 2, 0, .06, .02);
+    for (const s of [-1, 1]) { K.box('rubber', s * .16 - .07, s * .16 + .07, -.2 + s * .1, .25 + s * .1, .22 + (s > 0 ? .08 : 0), .26 + (s > 0 ? .08 : 0), .01); K.rod('steel', [s * .16, .2, .26], [s * .16, d / 2 - .3, .4], .02, 6); K.rod('steel', [s * .2, -d / 2 + .25, .45], [s * .26, -d / 2 + .1, h - .1], .02, 6); }
+    K.rod('black', [0, -d / 2 + .25, .05], [0, -d / 2 + .25, 1.3], .04, 8); K.rbox('black', 0, -d / 2 + .2, 1.35, .38, .1, .24, {r: .03, rx: -.4}); K.rbox('screen', 0, -d / 2 + .15, 1.36, .3, .01, .17, {rx: -.4});
+  },
+  cableStation(K, w, d, h, o){
+    for (const s of [-1, 1]) { const x = s * (w / 2 - .25);
+      K.box('steel', x - .25, x + .25, -d / 2 + .1, d / 2 - .1, 0, .06); for (const dx of [-.22, .22]) K.box('steel', x + dx - .04, x + dx + .04, -.05, .05, 0, h);
+      for (let i = 0; i < 14; i++) K.box(i % 2 ? 'black' : 'rubber', x - .16, x + .16, -.08, .08, .08 + i * .055, .13 + i * .055);
+      K.hcyl('chrome', x, 0, .08 + 14 * .055 + .1, .012, .2, 'x', 6); K.hcyl('black', x, -.1, h - .15, .06, .05, 'x', 14); K.rod('black', [x, -.1, h - .2], [x, -d / 2 + .05, 1.2], .006, 4); K.box('chrome', x - .12, x + .12, -d / 2 + .02, -d / 2 + .06, 1.18, 1.2); }
+    K.box('steel', -w / 2 + .2, w / 2 - .2, -.06, .06, h - .1, h);
+    K.box('steel', -.35, .35, -.08, .08, 2.0, 2.06); K.hcyl('chrome', 0, -.15, 2.0, .015, 1.2, 'x', 8);
+  },
+  yogaMat(K, w, d, h, o){
+    K.box(o.m || 'velvetGreen', -w / 2, w / 2, -d / 2, d / 2 - .25, 0, .006, .002);
+    K.rbox('walnut', -w / 2 + .15, d / 2 - .12, .05, .22, .14, .1, {r: .02}); K.hcyl('linen', w / 2 - .2, d / 2 - .12, .07, .07, .3, 'x', 14);
+  },
+  saunaHeater(K, w, d, h, o){
+    K.box('steel', -w / 2 + .06, w / 2 - .06, -d / 2 + .06, d / 2 - .06, 0, h - .2, .02);
+    const r = rng(hash('stones')); for (let i = 0; i < 26; i++) K.ell(i % 3 ? 'marbleDark' : 'black', (r() - .5) * (w - .2), (r() - .5) * (d - .2), h - .18 + r() * .1, .06, .05, .04, {ws: 6, hs: 4});
+    for (const s of [-1, 1]) K.box('woodSauna', -w / 2, w / 2, s > 0 ? d / 2 - .04 : -d / 2, s > 0 ? d / 2 : -d / 2 + .04, .1, h - .1); K.box('lampGlow', -w / 2 + .1, w / 2 - .1, -d / 2 + .05, -d / 2 + .06, .2, .3);
+  },
+  towelShelf(K, w, d, h, o){
+    K.box('walnut', -w / 2, w / 2, d / 2 - .03, d / 2, 0, h); for (const s of [-1, 1]) K.box('walnut', s > 0 ? w / 2 - .03 : -w / 2, s > 0 ? w / 2 : -w / 2 + .03, -d / 2, d / 2, 0, h);
+    for (let z = .1; z < h - .1; z += .38) { K.box('walnut', -w / 2 + .03, w / 2 - .03, -d / 2, d / 2 - .03, z, z + .025); for (let x = -w / 2 + .14; x < w / 2 - .1; x += .17) for (let k = 0; k < 2; k++) K.hcyl(o.roll || 'towel', x, -.015, z + .1 + k * .15, .075, d - .12, 'y', 12); }
+  },
+  kitchenRange(K, w, d, h, o){
+    // front toward -y: oven doors + knobs; burners on top, a few pans
+    K.box('steel', -w / 2, w / 2, -d / 2 + .02, d / 2, 0, h - .04, .01); K.box('black', -w / 2, w / 2, -d / 2, d / 2, h - .04, h);
+    const n = Math.max(2, Math.round(w / .4)); for (let i = 0; i < n; i++) for (const y of [-d / 4, d / 4]) { const x = -w / 2 + (i + .5) * w / n; K.torus('black', x, y, h + .01, .1, .012, {ts: 16, rs: 5}); K.cyl('steel', x, y, .035, .035, h, h + .015, 10); }
+    const r = rng(hash('rg' + w)); for (let i = 0; i < n; i++) if (r() < .5) { const x = -w / 2 + (i + .5) * w / n, y = (r() < .5 ? -1 : 1) * d / 4; K.lathe('chrome', x, y, [[0, h + .02], [.13, h + .02], [.14, h + .14], [.13, h + .14], [.12, h + .03], [0, h + .03]], 16); { const sd = x > 0 ? -1 : 1; K.rod('black', [x + sd * .13, y, h + .1], [x + sd * .33, y, h + .11], .012, 6); } }
+    for (let i = 0; i < Math.max(1, Math.floor(w / .8)); i++) { const x0 = -w / 2 + .05 + i * (w - .1) / Math.max(1, Math.floor(w / .8)), x1 = x0 + (w - .1) / Math.max(1, Math.floor(w / .8)) - .05; K.box('black', x0, x1, -d / 2, -d / 2 + .02, .12, .6, .01); K.box('chrome', x0 + .05, x1 - .05, -d / 2 - .0, -d / 2 + .005, .63, .65); }
+    for (let i = 0; i < n * 2; i++) K.cyl('chrome', -w / 2 + .1 + i * (w - .2) / (n * 2 - 1), -d / 2 + .01, .02, .02, .72, .75, 8);
+  },
+  prepTable(K, w, d, h, o){
+    for (const sx of [-1, 1]) for (const sy of [-1, 1]) K.box('steel', sx * (w / 2 - .05) - .02, sx * (w / 2 - .05) + .02, sy * (d / 2 - .05) - .02, sy * (d / 2 - .05) + .02, 0, h - .04);
+    K.box('steel', -w / 2, w / 2, -d / 2, d / 2, h - .04, h, .005); K.box('steel', -w / 2 + .05, w / 2 - .05, -d / 2 + .05, d / 2 - .05, .18, .21);
+    K.box('walnut', -.3, .2, -.2, .12, h, h + .03, .01); const r = rng(hash('pt' + w));
+    for (let i = 0; i < 7; i++) K.ell(['leaf', 'red', 'bread', 'leafDark', 'red', 'linen', 'bread'][i], .35 + (i % 3) * .12, -.15 + Math.floor(i / 3) * .12, h + .05, .05, .05, .04, {ws: 7, hs: 5});
+    K.box('chrome', -.25, .05, -.25, -.23, h + .03, h + .035); K.cyl('steel', -w / 2 + .3, .1, .14, .16, h, h + .12, 14);
+  },
+  sinkUnit(K, w, d, h, o){
+    K.box('steel', -w / 2, w / 2, -d / 2, d / 2, 0, h - .03, .01); K.box('steel', -w / 2, w / 2, -d / 2, d / 2, h - .03, h); K.box('steel', -w / 2, w / 2, d / 2 - .05, d / 2, h, h + .25);
+    for (const x of [-w / 4, w / 4]) { K.box('black', x - w / 4 + .06, x + w / 4 - .06, -d / 2 + .08, d / 2 - .12, h - .01, h + .001); K.cyl('chrome', x, d / 2 - .1, .015, .015, h, h + .45, 8); K.torus('chrome', x, d / 2 - .2, h + .45, .1, .012, {axis: 'x', arc: Math.PI, ts: 10, rs: 5}); }
+  },
+  wireShelf(K, w, d, h, o){
+    for (const sx of [-1, 1]) for (const sy of [-1, 1]) K.cyl('chrome', sx * (w / 2 - .02), sy * (d / 2 - .02), .015, .015, 0, h, 6);
+    const r = rng(hash('ws' + w + (o.seed || 0)));
+    for (let z = .15; z < h; z += .45) { K.box('chrome', -w / 2, w / 2, -d / 2, d / 2, z, z + .015); for (let x = -w / 2 + .12; x < w / 2 - .1; x += .22 + r() * .1) { const m = ['ceramic', 'linen', 'bread', 'steel', 'red', 'leaf'][Math.floor(r() * 6)], bh = .12 + r() * .2; K.box(m, x - .09, x + .09, -d / 2 + .05, d / 2 - .05, z + .015, z + .015 + bh, .01); } }
+  },
+  combiOven(K, w, d, h, o){
+    K.box('steel', -w / 2, w / 2, -d / 2 + .02, d / 2, 0, .4, .01);
+    for (const z0 of [.4, .4 + (h - .4) / 2]) { const z1 = z0 + (h - .4) / 2 - .02; K.box('steel', -w / 2, w / 2, -d / 2 + .02, d / 2, z0, z1, .01); K.box('black', -w / 2 + .05, w / 2 - .3, -d / 2, -d / 2 + .02, z0 + .05, z1 - .05, .01); K.box('screen', w / 2 - .25, w / 2 - .05, -d / 2, -d / 2 + .02, z1 - .3, z1 - .08); K.box('chrome', -w / 2 + .08, -w / 2 + .1, -d / 2 - .0, -d / 2 + .005, z0 + .1, z1 - .1); }
+  },
+  mixer(K, w, d, h, o){
+    K.box('steel', -w / 2, w / 2, -d / 2, d / 2, 0, .75, .01);
+    K.box('ceramic', -.12, .12, -.05, .15, .75, .82, .02); K.box('ceramic', -.06, .06, .05, .15, .82, h - .1); K.rbox('ceramic', 0, -.02, h - .07, .14, .3, .12, {r: .04});
+    K.lathe('chrome', 0, -.08, [[0, .82], [.05, .82], [.13, .88], [.15, 1.05], [.14, 1.06], [0, .9]], 18);
+  },
+  saladBowl(K, w, d, h, o){
+    const R = w / 2, r = rng(hash('sb' + (o.seed || 0)));
+    K.lathe('ceramic', 0, 0, [[0, 0], [R * .5, 0], [R * .9, h * .6], [R, h], [R * .94, h], [R * .84, h * .62], [0, .03]], 24);
+    const cols = [o.food || 'leaf', 'leafDark', 'red', 'bread']; for (let i = 0; i < 14; i++) { const a = r() * TAU, q = R * .7 * Math.sqrt(r()); K.ell(cols[i % 4], Math.cos(a) * q, Math.sin(a) * q, h * .7, .045, .04, .025, {ws: 6, hs: 4}); }
+    K.rod('steel', [R * .2, 0, h * .7], [R * .82, .03, h + .1], .008, 5);
+  },
+  plateStack(K, w, d, h, o){ const r = w / 2; for (let z = 0; z < h - .01; z += .022) K.cyl('ceramic', 0, 0, r * .85, r, z, z + .018, 24); },
+  juiceDispenser(K, w, d, h, o){
+    K.box('chrome', -w / 2, w / 2, -d / 2, d / 2, 0, .06, .01); const n = 3;
+    for (let i = 0; i < n; i++) { const x = -w / 2 + (i + .5) * w / n; K.cyl('glassClear', x, 0, .09, .09, .06, h - .04, 16, true); K.cyl(['bread', 'red', 'leaf'][i], x, 0, .085, .085, .07, h * .7, 16); K.cyl('chrome', x, 0, .095, .095, h - .04, h, 16); K.box('chrome', x - .02, x + .02, -d / 2, -d / 2 + .06, .1, .16); }
+  },
+  hostStand(K, w, d, h, o){
+    K.box('walnut', -w / 2, w / 2, -d / 2 + .05, d / 2, 0, h - .05, .02); K.box('marbleBlack', -w / 2 - .0, w / 2, -d / 2, d / 2, h - .05, h, .01);
+    K.box('gold', -w / 2 + .05, w / 2 - .05, -d / 2 + .04, -d / 2 + .05, .15, h - .1); K.rbox('screen', 0, .05, h + .01, .3, .22, .01, {rx: -.2}); K.cyl('gold', w / 2 - .12, .1, .05, .05, h, h + .25, 8); K.cyl('lampShade', w / 2 - .12, .1, .09, .07, h + .25, h + .38, 14, true);
+  },
+  iceDisplay(K, w, d, h, o){
+    K.box('marble', -w / 2, w / 2, -d / 2, d / 2, 0, .05, .01); K.box('linen', -w / 2 + .05, w / 2 - .05, -d / 2 + .05, d / 2 - .05, .05, .12, .04);
+    const r = rng(7); for (let i = 0; i < 40; i++) { const x = (r() - .5) * (w - .2), y = (r() - .5) * (d - .2), k = i % 4; K.ell(['red', 'black', 'bread', 'gold'][k], x, y, .14, k === 1 ? .04 : .05, .025, .02, {ws: 6, hs: 4, az: r() * 3}); }
   },
   cushionedBench(K, w, d, h, o){ K.box(o.fab || 'leather', -w / 2, w / 2, -d / 2, d / 2, h - .1, h, .03, 2); K.box('walnut', -w / 2 + .03, w / 2 - .03, -d / 2 + .03, d / 2 - .03, h - .14, h - .1); for (const sx of [-1, 1]) for (const sy of [-1, 1]) taperLeg(K, 'gold', sx * (w / 2 - .06), sy * (d / 2 - .06), 0, h - .14, .02); },
 };

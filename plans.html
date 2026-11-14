@@ -27,7 +27,7 @@ const COL = {wine:'#4a0d16', soil:'#2e2118', trunk:'#4a3523', leafDark:'#23502a'
   walnut:'#6b4a2e', linen:'#fbf8f2', duvet:'#fffdf8', throw:'#2f6b4f', velvetCream:'#e9dcc4', velvetBlush:'#d9a9a2', velvetGreen:'#3f7a5e', velvetNavy:'#34507a', leather:'#8a4b26', rug:'#cfc0a4',
   ceramic:'#ffffff', glassShower:'#a8d4e6', mirror:'#cfe3ea', tv:'#111', gold:'#c9a24a', steel:'#9aa0a6', stair:'#c9c1b2', stairNose:'#888', sheer:'#f5f2ec', drape:'#b9a98c', acWhite:'#e8eef2', acGrille:'#999',
   pot:'#d9d0be', leaf:'#4c8a4e', blossom:'#e2a6b4', lampShade:'#fff2d8', water:'#9fd2e6', towel:'#fff', art:'#6a3a3a', book:'#7a5a3a', red:'#c33', black:'#000', lampGlow:'#ffd9a0', glassClear:'#cde', bottleGreen:'#2f6b34', linenDk:'#bbb'};
-const FLOORS = [['G', 'G · Lobby'], [2, 'L2 · Dining'], [3, 'L3 · Fitness & Spa'], [4, 'L4-8 · Deluxe'], [9, 'L9 · Pool'], [10, 'L10-13 · Club'], [14, 'L14 · Club Lounge'], [15, 'L15-16 · Executive'], [17, 'L17 · Presidential'], [18, 'L18 · Rooftop']];
+const FLOORS = [['G', 'G · Lobby'], [2, 'L2 · Dining'], [3, 'L3 · Fitness & Spa'], [4, 'L4-8 · Deluxe'], [9, 'L9 · Recreation'], [10, 'L10-13 · Club'], [14, 'L14 · Club Lounge'], [15, 'L15-16 · Executive'], [17, 'L17 · Presidential'], [18, 'L18 · Rooftop']];
 let S = 34, PAD = 1.2, EX = GX, EY = GY, W = 0, H = 0;
 const sx = x => (x + EX + PAD) * S, sy = y => (-y + EY + PAD) * S;
 function draw(lv){
@@ -50,7 +50,7 @@ function draw(lv){
   }
   for (const r of L.rooms) {
     const cx = sx((r.x0 + r.x1) / 2), cy = sy((r.y0 + r.y1) / 2);
-    o += `<text x="${cx}" y="${cy - 6}" text-anchor="middle" font-size="15" font-weight="600" fill="#1d1a16" stroke="#fff" stroke-width="4" paint-order="stroke">${r.num} ${r.name}</text><text x="${cx}" y="${cy + 12}" text-anchor="middle" font-size="12" fill="#5a5146" stroke="#fff" stroke-width="3" paint-order="stroke">${r.area} m² · ${r.view}</text>`;
+    o += `<text x="${cx}" y="${cy - 6}" text-anchor="middle" font-size="15" font-weight="600" fill="#1d1a16" stroke="#fff" stroke-width="4" paint-order="stroke">${r.num ? r.num + ' ' : ''}${r.name}</text><text x="${cx}" y="${cy + 12}" text-anchor="middle" font-size="12" fill="#5a5146" stroke="#fff" stroke-width="3" paint-order="stroke">${r.area} m² · ${r.view}</text>`;
   }
   for (const [t, x, y] of L.labels) o += `<text x="${sx(x)}" y="${sy(y)}" text-anchor="middle" font-size="11" fill="#7a5b1e" stroke="#fff" stroke-width="3" paint-order="stroke">${t}</text>`;
   o += `<text x="${sx(0)}" y="${sy(-EY - .85)}" text-anchor="middle" font-size="13" fill="#3a6e88">▼ RIVER · แม่น้ำ${L.podium ? '  ·  MAIN ENTRANCE ทางเข้า' : ''}</text>`;

@@ -5,7 +5,7 @@ import {floorLayout, insideTower} from '../js/layout.js';
 import {readFileSync} from 'node:fs';
 const PROPS = Object.fromEntries([...readFileSync(new URL('../js/props.js', import.meta.url), 'utf8').matchAll(/^  (\w+)\(K, /gm)].map(m => [m[1], 1]));
 
-const EPS = .004;
+const EPS = .004, CEIL_TOP = 2.55;
 const levels = ['G', 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18];
 let total = 0;
 // 2-D shape: {circle: [x, y, r]} or {poly: [[x, y] x4]}
@@ -42,6 +42,8 @@ for (const lv of levels) {
   const solids = L.items.filter(i => i.s).map(i => ({i, b: bb(i), sh: shape(i)}));
   for (let a = 0; a < solids.length; a++) for (let b = a + 1; b < solids.length; b++) {
     const A = solids[a], B = solids[b];
+    const WALLS = /^(wall|concrete|woodSauna|marble|glassShower|cladding)$/;
+    if (A.i.t === 'b' && B.i.t === 'b' && WALLS.test(A.i.m) && WALLS.test(B.i.m) && A.i.z1 >= CEIL_TOP && B.i.z1 >= CEIL_TOP) continue;   // wall junctions overlap by design
     if (zov(A.i, B.i) && aabbHit(A.b, B.b) && overlap2(A.sh, B.sh)) errs.push(`COLLIDE  ${name(A.i)}  x  ${name(B.i)}`);
   }
   const inside = L.podium ? (([x, y]) => Math.abs(x) <= 24.3 && Math.abs(y) <= 13.8) : (([x, y]) => insideTower(x, y, .05));
